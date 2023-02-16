@@ -2,7 +2,7 @@ import socket
 import random
 import time 
 
-UDP_IP = "10.192.15.188"
+UDP_IP = "192.168.1.92"
 UDP_PORT = 5005
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

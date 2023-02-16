@@ -113,6 +113,11 @@ void main(void)
     InitSysCtrl();
 
     InitGpio();
+
+    // pin19 on LaunchPad
+    GPIO_SetupPinMux(61, GPIO_MUX_CPU1, 0);
+    GPIO_SetupPinOptions(61, GPIO_OUTPUT, GPIO_PUSHPULL);
+    // GpioDataRegs.GPASET.bit.GPIO31 = 1;
 	
 	// Blue LED on LaunchPad
     GPIO_SetupPinMux(31, GPIO_MUX_CPU1, 0);
@@ -295,10 +300,12 @@ void main(void)
     while(1)
     {
         if (UARTPrint == 1 ) {
+            GpioDataRegs.GPBSET.bit.GPIO61 = 1;
 			serial_printf(&SerialA,"Num Timer2:%ld Num SerialRX: %ld\r\n",CpuTimer2.InterruptCount,numRXA);
             UART_printfLine(1,"Timer2 Calls %ld",CpuTimer2.InterruptCount);
             UART_printfLine(2,"Num SerialRX %ld",numRXA);
             UARTPrint = 0;
+            GpioDataRegs.GPBCLEAR.bit.GPIO61 = 1;//takes 264us for all the print commands
         }
     }
 }
