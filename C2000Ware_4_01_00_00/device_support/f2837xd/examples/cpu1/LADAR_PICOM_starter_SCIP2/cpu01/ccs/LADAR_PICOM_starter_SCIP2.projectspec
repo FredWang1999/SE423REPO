@@ -1,6 +1,6 @@
 <projectSpec>
   <project
-        name="LADAR_PICOMstarter"
+        name="LADAR_PICOMstarter_SCIP2"
         device="TMS320F28379D"
         cgtVersion="20.2.2.LTS"
         launchWizard="False"
@@ -34,12 +34,12 @@
 	<file action="link" path="../../../../../../../libraries/dsp/FPU/c28/lib/c28x_fpu_dsp_library.lib" targetDirectory="" />	
     <file action="link" path="../../../../../../../driverlib/f2837xd/driverlib/ccs/Debug/driverlib.lib" targetDirectory="" />
     <file action="copy" path="../../../../../../../driverlib/f2837xd/driverlib/" targetDirectory="device" excludeFromBuild="True" />
-    <file action="copy" path="../LADAR_PICOMstarter_main.c" targetDirectory="" />
+    <file action="copy" path="../LADAR_PICOMstarter_SCIP2_main.c" targetDirectory="" />
     <file action="copy" path="../buffer.h" targetDirectory="" />	
     <file action="copy" path="../F28379dSerial.h" targetDirectory="" />
     <file action="copy" path="../F28379dSerial.c" targetDirectory="" />	
 	<file action="copy" path="../song.h" targetDirectory="" />
     <file action="copy" path="../.gitignore" targetDirectory="" />	
-	<file action="copy" path="../linux/" targetDirectory="" excludeFromBuild="True" />	
+	<file action="copy" path="../linux/" targetDirectory="" excludeFromBuild="True" />
   </project>
 </projectSpec>

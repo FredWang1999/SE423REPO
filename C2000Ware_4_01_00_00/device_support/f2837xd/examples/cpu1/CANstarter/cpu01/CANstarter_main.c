@@ -18,7 +18,6 @@
 #include "song.h"
 #include "dsp.h"
 #include "fpu32/fpu_rfft.h"
-#include "F28379dCAN.h"
 
 #define PI          3.1415926535897932384626433832795
 #define TWOPI       6.283185307179586476925286766559
@@ -28,6 +27,7 @@
 
 
 // ----- code for CAN start here -----
+#include "F28379dCAN.h"
 //#define TX_MSG_DATA_LENGTH    4
 //#define TX_MSG_OBJ_ID         0  //transmit
 
