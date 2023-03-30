@@ -104,7 +104,19 @@ float error_left_old, error_right_old;
 float kp_turn = 3, error_steer, turn = 0;
 float I_z = 0, I_z4 = 0;
 float z_old, z4_old;
-
+//linux commands
+float ref_right_wall; //r
+float left_turn_Start_threshold;
+float left_turn_Stop_threshold;
+float Kp_right_wall;
+float Kp_front_wall;
+float front_turn_velocity;
+float forward_velocity;
+float turn_command_saturation;
+// RIGHT WALL FOLLOWING
+float front_wall_error;
+float right_wall_error;
+int right_wall_follow_state = 1;
 // [TH] SPI variables
 int16_t spivalue1 = 0;
 int16_t spivalue2 = 0;
@@ -119,9 +131,37 @@ int16_t spib_counter = 0;
 
 float accelx, accely, accelz;
 float gyrox, gyroy, gyroz;
+float I_gyroz,gyroz_old;
 float accelXoffset = -2.581, accelYoffset = 2.625, accelZoffset = 4.2;
 uint16_t accelXoffsetRaw, accelYoffsetRaw, accelZoffsetRaw;
+float robot_ps_x = 0, robot_ps_y = 0;
+
 void setupSpib(void);
+
+void setEPWM3A_RCServo(float angle) {
+    angle = fmax(fmin(angle, 90), -90);
+    EPwm3Regs.CMPA.bit.CMPA = EPwm3Regs.TBPRD * (((angle / 180.0) * 8 + 8) / 100.0);
+}
+
+void setEPWM3B_RCServo(float angle) {
+    angle = fmax(fmin(angle, 90), -90);
+    EPwm3Regs.CMPB.bit.CMPB = EPwm3Regs.TBPRD * (((angle / 180.0) * 8 + 8) / 100.0);
+}
+
+void setEPWM5A_RCServo(float angle) {
+    angle = fmax(fmin(angle, 90), -90);
+    EPwm5Regs.CMPA.bit.CMPA = EPwm5Regs.TBPRD * (((angle / 180.0) * 8 + 8) / 100.0);
+}
+
+void setEPWM5B_RCServo(float angle) {
+    angle = fmax(fmin(angle, 90), -90);
+    EPwm5Regs.CMPB.bit.CMPB = EPwm5Regs.TBPRD * (((angle / 180.0) * 8 + 8) / 100.0);
+}
+
+void setEPWM6A_RCServo(float angle) {
+    angle = fmax(fmin(angle, 90), -90);
+    EPwm6Regs.CMPA.bit.CMPA = EPwm6Regs.TBPRD * (((angle / 180.0) * 8 + 8) / 100.0);
+}
 
 uint16_t calAccelOffsetReg(float accelOffset){
     if(accelOffset > 0){
@@ -466,6 +506,56 @@ void main(void)
     init_serialSCIC(&SerialC,19200);
     init_serialSCID(&SerialD,2083332);
 
+    // Setting up EPWM3
+    EPwm3Regs.TBCTL.bit.CTRMODE = 0;
+    EPwm3Regs.TBCTL.bit.FREE_SOFT = 2;
+    EPwm3Regs.TBCTL.bit.PHSEN = 0;
+    EPwm3Regs.TBCTL.bit.CLKDIV = 5;
+    EPwm3Regs.TBCTR = 0;
+    EPwm3Regs.TBPRD = 31250;
+    EPwm3Regs.CMPA.bit.CMPA = 0;
+    EPwm3Regs.AQCTLA.bit.CAU = 1;
+    EPwm3Regs.AQCTLA.bit.ZRO = 2;
+    EPwm3Regs.CMPB.bit.CMPB = 0;
+    EPwm3Regs.AQCTLB.bit.CBU = 1;
+    EPwm3Regs.AQCTLB.bit.ZRO = 2;
+    EPwm3Regs.TBPHS.bit.TBPHS =0;
+
+    GPIO_SetupPinMux(4, GPIO_MUX_CPU1, 1);
+    GPIO_SetupPinMux(5, GPIO_MUX_CPU1, 1);
+
+    // Setting up EPWM5
+    EPwm5Regs.TBCTL.bit.CTRMODE = 0;
+    EPwm5Regs.TBCTL.bit.FREE_SOFT = 2;
+    EPwm5Regs.TBCTL.bit.PHSEN = 0;
+    EPwm5Regs.TBCTL.bit.CLKDIV = 5;
+    EPwm5Regs.TBCTR = 0;
+    EPwm5Regs.TBPRD = 31250;
+    EPwm5Regs.CMPA.bit.CMPA = 0;
+    EPwm5Regs.AQCTLA.bit.CAU = 1;
+    EPwm5Regs.AQCTLA.bit.ZRO = 2;
+    EPwm5Regs.CMPB.bit.CMPB = 0;
+    EPwm5Regs.AQCTLB.bit.CBU = 1;
+    EPwm5Regs.AQCTLB.bit.ZRO = 2;
+    EPwm5Regs.TBPHS.bit.TBPHS =0;
+
+    GPIO_SetupPinMux(8, GPIO_MUX_CPU1, 1);
+    GPIO_SetupPinMux(9, GPIO_MUX_CPU1, 1);
+
+    // Setting up EPWM6
+    EPwm6Regs.TBCTL.bit.CTRMODE = 0;
+    EPwm6Regs.TBCTL.bit.FREE_SOFT = 2;
+    EPwm6Regs.TBCTL.bit.PHSEN = 0;
+    EPwm6Regs.TBCTL.bit.CLKDIV = 5;
+    EPwm6Regs.TBCTR = 0;
+    EPwm6Regs.TBPRD = 31250;
+    EPwm6Regs.CMPA.bit.CMPA = 0;
+    EPwm6Regs.AQCTLA.bit.CAU = 1;
+    EPwm6Regs.AQCTLA.bit.ZRO = 2;
+    EPwm6Regs.TBPHS.bit.TBPHS =0;
+
+    GPIO_SetupPinMux(10, GPIO_MUX_CPU1, 1);
+
     for (LADARi = 0; LADARi < 228; LADARi++) {
         ladar_data[LADARi].angle = ((3*LADARi+44)*0.3515625-135)*0.01745329; //0.017453292519943 is pi/180, multiplication is faster; 0.3515625 is 360/1024
     }
@@ -605,7 +695,7 @@ void main(void)
             // UART_printfLine(1,"ul:%.2f ur:%.2f",uleft,-uright);
             UART_printfLine(1,"vref:%.2f turn:%.2f",v_ref ,turn);
             // UART_printfLine(2,"v_ref:%.2f",v_ref);
-            UART_printfLine(2,"9250Z:%.2f adccZ:%.2f",gyroz, z);
+            UART_printfLine(2,"%.2f %.2f %.2f",I_gyroz, robot_ps_x, robot_ps_y);
             UARTPrint = 0;
         }
     }
@@ -710,12 +800,43 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
        x4 =    (((adcc3result - sumx4)*3.0 / 4095.0)) * 100.0 / 180.0 * PI;
        z4 =    (((adcc4result - sumz4)*3.0 / 4095.0)) * 100.0 / 180.0 * PI;
        z =     (((adcc5result - sumz)*3.0 / 4095.0)) * 400.0 / 180.0 * PI;
-       gyroz -= sumGyro9250z;
+
        I_z4 += (z4 + z4_old) / 2 * 0.001;
        I_z += (z + z_old) / 2 *0.001;
-
        z4_old = z4;
        z_old = z;
+
+       gyroz -= sumGyro9250z;
+
+       I_gyroz += (gyroz + gyroz_old) / 2 * 0.001;
+       gyroz_old = gyroz;
+
+       //right wall following
+
+       switch (right_wall_follow_state) {
+       case 1:
+       //Left Turn
+       turn = Kp_front_wall * (14.5 - LADARfront);
+       v_ref = front_turn_velocity;
+       if (LADARfront > left_turn_Stop_threshold) {
+       right_wall_follow_state = 2;
+       }
+       break;
+       case 2:
+       //Right Wall Follow
+       turn = Kp_right_wall * (ref_right_wall - LADARrightfront);
+       if (turn > turn_command_saturation){
+           turn = turn_command_saturation;
+       }
+       if (turn < -turn_command_saturation){
+           turn = -turn_command_saturation;
+       }
+       v_ref = forward_velocity;
+       if (LADARfront < left_turn_Start_threshold) {
+       right_wall_follow_state = 1;
+       }
+       break;
+       }
 
        //car control
        left_encoder_reading = -readEncLeft();
@@ -772,11 +893,30 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
        setEPWM2A(-uright);
     }
 
+    // Calculate location
+    float ave_v = (v1 + v2) / 2;
+    robot_ps_x += ave_v * 0.001 * cos(I_gyroz/180*PI);
+    robot_ps_y += ave_v * 0.001 * sin(I_gyroz/180*PI);
+
+    // servo testing
+    setEPWM3A_RCServo(wheel_reading);
+    setEPWM3B_RCServo(wheel_reading);
+    setEPWM5A_RCServo(wheel_reading);
+    setEPWM5B_RCServo(wheel_reading);
+    setEPWM6A_RCServo(wheel_reading);
 
     if (newLinuxCommands == 1) {
         newLinuxCommands = 0;
         v_ref = LinuxCommands[0];
         turn = LinuxCommands[1];
+        ref_right_wall = LinuxCommands[2];
+        left_turn_Start_threshold = LinuxCommands[3];
+        left_turn_Stop_threshold = LinuxCommands[4];
+        Kp_right_wall = LinuxCommands[5];
+        Kp_front_wall = LinuxCommands[6];
+        front_turn_velocity = LinuxCommands[7];
+        forward_velocity = LinuxCommands[8];
+        turn_command_saturation = LinuxCommands[9];
 
         //value3 = LinuxCommands[2];
         //value4 = LinuxCommands[3];
