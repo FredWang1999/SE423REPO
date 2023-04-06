@@ -134,7 +134,6 @@ float gyrox, gyroy, gyroz;
 float I_gyroz,gyroz_old;
 float accelXoffset = -2.581, accelYoffset = 2.625, accelZoffset = 4.2;
 uint16_t accelXoffsetRaw, accelYoffsetRaw, accelZoffsetRaw;
-float robot_ps_x = 0, robot_ps_y = 0;
 
 void setupSpib(void);
 
@@ -695,7 +694,7 @@ void main(void)
             // UART_printfLine(1,"ul:%.2f ur:%.2f",uleft,-uright);
             UART_printfLine(1,"vref:%.2f turn:%.2f",v_ref ,turn);
             // UART_printfLine(2,"v_ref:%.2f",v_ref);
-            UART_printfLine(2,"%.2f %.2f %.2f",I_gyroz, robot_ps_x, robot_ps_y);
+            UART_printfLine(2,"%.2f %.2f %.2f",I_gyroz, ROBOTps.x, ROBOTps.y);
             UARTPrint = 0;
         }
     }
@@ -895,9 +894,9 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
     // Calculate location
     float ave_v = (v1 + v2) / 2;
-    robot_ps_x += ave_v * 0.001 * cos(I_gyroz/180*PI);
-    robot_ps_y += ave_v * 0.001 * sin(I_gyroz/180*PI);
-
+    ROBOTps.x += ave_v * 0.001 * cos(I_gyroz/180*PI);
+    ROBOTps.y += ave_v * 0.001 * sin(I_gyroz/180*PI);
+    ROBOTps.theta = I_gyroz/180*PI;
     // servo testing
     setEPWM3A_RCServo(wheel_reading);
     setEPWM3B_RCServo(wheel_reading);
