@@ -10,9 +10,10 @@ lcd.init(triple_buffer=True) # Initialize the lcd screen.  Make Non-blocking but
 
 uart = pyb.UART(3)
 uart.init(115200, bits=8, parity=None)
-threshold1 = (0, 100, -128, 127, -128, 127) # change to a color threshold range
-threshold2 = (0, 100, -128, 127, -128, 127) # change to a color threshold range
-# Packets to Send
+threshold1 = (0, 100, 31, 90, 14, 76) # orange
+threshold2 = (30, 61, -5, 18, -36, -5)
+#threshold2 = (30, 67, 4, 23, -41, -14) # purple
+
 blob_packet = '<fff'
 
 # Setup RED LED for easier debugging
