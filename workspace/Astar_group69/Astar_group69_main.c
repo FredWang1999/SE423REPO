@@ -99,18 +99,17 @@ char map[176] =      //16x11
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
 
-// 230430 YASU added 7 obstacles
 char mapstart[176] =      //16x11
 {   '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '0', '0',
-    '0', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '0', '0',
-    '0', 'x', 'x', 'x', 'x', 'x', 'x', 'x', 'x', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    'x', 'x', 'x', 'x', '0', '0', '0', 'x', '0', '0', '0',
-    'x', 'x', 'x', 'x', '0', 'x', 'x', '0', '0', 'x', 'x',
-    'x', 'x', 'x', 'x', '0', '0', '0', 'x', '0', 'x', '0',
-    '0', '0', '0', '0', '0', 'x', 'x', '0', '0', 'x', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', 'x', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     'x', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', 'x',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
@@ -118,12 +117,32 @@ char mapstart[176] =      //16x11
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
 
+// 230502 YASU declared edgeMap for obstacles, it has the same dimension to the map
+typedef struct edge{
+    _Bool isEdge;
+    _Bool isFound;
+}edge;
 
+edge edgeMap[176];
 
+// 230502 YASU declared obstacleCandidate to store LiDAR distances less than 4
+typedef struct obsCandidate{
+    int x; //4
+    int y;
+    _Bool isCandidate;
+} obsCandidate;
 
+obsCandidate obstacleCandidate[75];
 
-
-
+// 230502 YASU declared horiEdgeCounter & vertEdgeCounter to determine solid obstacles,
+// If horiEdgeCounter is larger than SOLID_OBS_NUM, we say that there's an horizontal edge on the x position, for y, vice versa.
+#define SOLID_OBS_NUM 8
+int horiEdgeCounter = 0;
+int vertEdgeCounter = 0;
+float sumHoriEdgeX = 0;
+float sumVertEdgeX = 0;
+int prevEdgeX = 0;
+int prevEdgeY = 0;
 
 uint32_t numTimer0calls = 0;
 uint16_t UARTPrint = 0;
@@ -495,6 +514,23 @@ void main(void)
     // LED5 is GPIO111
     GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
 
+    // 230502 YASU initialize edgeMap
+    for (int i=11 ; i<121 ; ++i)
+    {
+        int row = i/11;
+        int col = i%11;
+
+        if (((row % 2) == 1) && ((col % 2) == 0))
+        {
+            edgeMap[row*11 + col].isEdge = 1;
+        }
+
+        if (((row % 2) == 0) && ((col % 2) == 1))
+        {
+            edgeMap[row*11 + col].isEdge = 1;
+        }
+    }
+
 
     // IDLE loop. Just sit and loop forever (optional):
     while(1)
@@ -644,6 +680,74 @@ __interrupt void cpu_timer2_isr(void)
     //  if ((CpuTimer2.InterruptCount % 10) == 0) {
     //      UARTPrint = 1;
     //  }
+
+    for (int i=0 ; i<75 ; ++i)
+    {
+        // 230502 YASU if it's a candidate, check it's vertical or horizontal edge.
+        if (obstacleCandidate[i].isCandidate)
+        {
+            // 230502 YASU if it's likely to be a horizontal edge,
+            if (prevEdgeY == obstacleCandidate[i].y)
+            {
+                if (horiEdgeCounter < SOLID_OBS_NUM)
+                {
+                    horiEdgeCounter++;
+                    sumHoriEdgeX += horiEdgeCounter*obstacleCandidate[i].x;
+                }
+                else
+                {
+                    if (edgeMap[round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY].isFound != 1)
+                        edgeMap[round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY].isFound = 1;
+
+                    sumHoriEdgeX = 0.0;
+                    prevEdgeY = 0;
+                    horiEdgeCounter = 0;
+                }
+            }
+            else
+            {
+                sumHoriEdgeX = 0;
+                prevEdgeY = 0;
+                horiEdgeCounter = 0;
+            }
+
+            if (prevEdgeX == obstacleCandidate[i].x)
+            {
+                if (vertEdgeCounter < SOLID_OBS_NUM)
+                {
+                    vertEdgeCounter++;
+                    sumVertEdgeY += vertEdgeCounter*obstacleCandidate[i].y;
+                }
+                else
+                {
+                    if (edgeMap[prevEdgeX * 11 + round(sumVertEdgeY/vertEdgeCounter)].isFound != 1)
+                        edgeMap[prevEdgeX * 11 + round(sumVertEdgeY/vertEdgeCounter)].isFound = 1;
+
+                    sumVertEdgeY = 0.0;
+                    prevEdgeX = 0;
+                    vertEdgeCounter = 0;
+                }
+            }
+            else
+            {
+                sumVertEdgeY = 0.0;
+                prevEdgeX = 0;
+                vertEdgeCounter = 0;
+            }
+
+            prevEdgeX = obstacleCandidate[i].x;
+            prevEdgeY = obstacleCandidate[i].y;
+        }
+        else
+        {
+            // 230502 YASU if it's not candidate,
+            // clear all the counters and positions.
+            horiEdgeCounter = 0;
+            vectEdgeCounter = 0;
+            prevEdgeX = 0;
+            prevEdgeY = 0;
+        }
+    }
 }
 
 void setF28027EPWM1A(float controleffort){
@@ -948,6 +1052,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         // uses xy code to step through an array of positions
         if( xy_control(&vref, &turn, 1.0, ROBOTps.x, ROBOTps.y, robotdest[statePos].x, robotdest[statePos].y, ROBOTps.theta, 0.25, 0.5)) {
 //            statePos = (statePos+1)%NUMWAYPOINTS;
+            if (wayindex != (NUMWAYPOINTS-1))
             if (AstarRunning == 0)
             {
                 if (statePos == numpts - 1)
@@ -1187,11 +1292,29 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
         LADARyoffset = ROBOTps.y + (LADARps.x*sinf(ROBOTps.theta)-LADARps.y*cosf(ROBOTps.theta - PI/2.0));
         for (LADARi = 0; LADARi < 228; LADARi++) {
-
             ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_ping*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
             ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_ping*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
 
+            // 230502 YASU sample the LiDAR data to obstacleCandidate 75 times
+            // If the distance is less than 4 tiles, set x, y to round(ladar_pts.pos), and set isCandidate to 1
+            // Else, set them to zero
+            if ((LADARi % 3) == 1)
+            {
+                if (ladar_data[LADARi].distance_ping <= 4)
+                {
+                    obstacleCandidate[LADARi/3].x = round(ladar_pts[LADARi].x);
+                    obstacleCandidate[LADARi/3].y = round(ladar_pts[LADARi].y);
+                    obstacleCandidate[LADARi/3].isCandidate = 1;
+                }
+                else
+                {
+                    obstacleCandidate[LADARi/3].x = 0;
+                    obstacleCandidate[LADARi/3].y = 0;
+                    obstacleCandidate[LADARi/3].isCandidate = 0;
+                }
+            }
         }
+
     } else if (LADARpingpong == 0) {
         // LADARrightfront is the min of dist 52, 53, 54, 55, 56
         LADARrightfront = 19; // 19 is greater than max feet
@@ -1210,10 +1333,27 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
         LADARyoffset = ROBOTps.y + (LADARps.x*sinf(ROBOTps.theta)-LADARps.y*cosf(ROBOTps.theta - PI/2.0));
         for (LADARi = 0; LADARi < 228; LADARi++) {
-
             ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_pong*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
             ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_pong*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
 
+            // 230502 YASU sample the LiDAR data to obstacleCandidate 75 times
+            // If the distance is less than 4 tiles, set x, y to round(ladar_pts.pos), and set isCandidate to 1
+            // Else, set them to zero
+            if ((LADARi % 3) == 1)
+            {
+                if (ladar_data[LADARi].distance_ping <= 4)
+                {
+                    obstacleCandidate[LADARi/3].x = round(ladar_pts[LADARi].x);
+                    obstacleCandidate[LADARi/3].y = round(ladar_pts[LADARi].y);
+                    obstacleCandidate[LADARi/3].isCandidate = 1;
+                }
+                else
+                {
+                    obstacleCandidate[LADARi/3].x = 0;
+                    obstacleCandidate[LADARi/3].y = 0;
+                    obstacleCandidate[LADARi/3].isCandidate = 0;
+                }
+            }
         }
     }
 
