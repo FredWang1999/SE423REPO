@@ -339,13 +339,13 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 		//2.  pop q (which is currently the minimum) off which queue? 
 		// Choose one of these two lines of code
 		// IF the Openset
-		//pop_(&openSet, nodeTrack, mapColSize);
+		pop_(&openSet, nodeTrack, mapColSize);
 		// IF closedSet 
 		//pop(&closedSet, nodeTrack, mapColSize);
 		
 		/*generate q's 4 neighbors*/
 		// 3.  Pass q's row and col to getNeighbors
-		int numNeighbors = getNeighbors(r?, c?);	//get list of neighbors
+		int numNeighbors = getNeighbors(minDistNode.row, minDistNode.col);	//get list of neighbors
 	
 		/*for each neighbor*/
 		int cnt = 0;
@@ -354,6 +354,15 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 			// 4. Just add comments here.  Find where the structure node_t is defined and inside commments here copy its definition for
 			// viewing reference.  
 			// All the answer for 4. will be commented.
+			//typedef struct node
+			//{
+			//	int row;
+			//	int col;
+			//	int distTravelFromStart;
+			//	int distToGoal;
+			//	int totalDist;
+			//	int pushOrder;		//order that element was pushed onto the heap
+			//} node_t;
 			node_t next = neighbors[cnt];
 			
 			/*if neighbor is the goal, stop the search*/
@@ -361,8 +370,8 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 			if((next.row == rowEnd) && (next.col == colEnd))		//if neighbor is the goal, found the end, so stop the search
 			{
 				// 5.  set current neighbor's parents.  Set parentRow to q's row.  Set parentCol to q's col since q is the parent of this neighbor
-				(nodeTrack[next.row*mapColSize+next.col]).parentRow = ?;	 //set goal node's parent position to current position
-				(nodeTrack[next.row*mapColSize+next.col]).parentCol = ?;
+				(nodeTrack[next.row*mapColSize+next.col]).parentRow = minDistNode.row;	 //set goal node's parent position to current position
+				(nodeTrack[next.row*mapColSize+next.col]).parentCol = minDistNode.col;
 				goalFound = 't';
 				break;
 			}
@@ -370,23 +379,27 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 			/*neighbor.distTravelFromStart (g) = q.distTravelFromStart + distance between neighbor and q which is always 1 when search just top left bottom right*/
 			// 6.  Set this neighbor's distance traveled from the start.  Remember you have the variable "currDist" that is the distance of q to Start
 			//need to consider diagonal distance now
-			next.distTravelFromStart = ?;
+			next.distTravelFromStart = currDist+1;
 			// printf("next.distTravelFromStart %f\n", next.distTravelFromStart);
 			
 			/*neighbor.distToGoal (h) = distance from goal to neighbor, heuristic function	(estimated distance to goal)*/
 			// 7.  Pass the correct parameters to "heuristic" to calculate the distance this neighbor is from the goal.
 			//  Remember that we have the variables rowEnd and colEnd which are the grid coordinates of the goal 
-			next.distToGoal = heuristic(?, ?, ?, ?);
+			next.distToGoal = heuristic(next.row, next.col, rowEnd, colEnd);
 			
 			/*neighbor.totalDist (f) = neighbor.distTravelFromStart + neighbor.distToGoal
 				(total estimated distance as sum of distance traveled from start and distance to goal)*/
 			// 8.  Find f, (totalDist) for this neighbor
-			next.totalDist = ?;
+			next.totalDist = next.distTravelFromStart + next.distToGoal;
 			
 			
 			// 9.  Just comments for this question.
 			// Explain in your own words (not copying the comments below) what the next 19 lines of C code are doing
 			
+			// YASU When searching the next neighbor, skip the larger distance neighbor nodes, because there's a better option with a shorter distance.
+			// Then push the shortest distance node into the openSet.
+			// If there's a neighbor that's in the closedset, skip pushing it into the closedset.
+
 			/*if a node with the same position as neighbor is in the OPEN list
 				which has a lower total distance than neighbor, skip putting this neighbor onto the open set*/
 			//check if node is on the open set already
@@ -421,7 +434,7 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 				//10.  push this neighbor on which queue? 
 				// Choose one of these two lines of code
 				// IF openSet
-				//push_(next, &openSet, nodeTrack, mapColSize);
+				push_(next, &openSet, nodeTrack, mapColSize);
 				//printf("Push to OpenList, Row=%d,Col=%d,g=%d,h=%d,f=%d\n",next.row,next.col,next.distTravelFromStart,next.distToGoal,next.totalDist);
 				// IF closedSet
 				//push(next, &closedSet, nodeTrack, mapColSize);
@@ -436,7 +449,7 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 		// IF openSet
 		//push(minDistNode, &openSet, nodeTrack, mapColSize);
 		// IF closedSet
-		//push_(minDistNode, &closedSet, nodeTrack, mapColSize);
+		push_(minDistNode, &closedSet, nodeTrack, mapColSize);
 		//printf("Push to ClosedList, Row=%d,Col=%d\n",minDistNode.row,minDistNode.col);
 	}  /*end while loop*/
 
@@ -444,7 +457,7 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 	if(goalFound == 't') {
 		// 12.  Pass the correct varaibles to "reconstructPath" in order for it to fill in the global arrays pathRow, pathCol
 		//     and integer pathLen.  Note that the path is in reverse order in pathRow and pathCol.
-		reconstructPath(?, ?, ?);
+		reconstructPath(rowEnd, colEnd, nodeTrack);
 		return 1;
 	}
 	return 0;
