@@ -4,15 +4,15 @@ import image, sensor, ustruct, pyb, lcd, time
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.QVGA) # use QVGA 320*240
-sensor.set_auto_gain(False) # must be turned off for color tracking
-sensor.set_auto_whitebal(False) # must be turned off for color tracking
+sensor.set_auto_gain(False,gain_db = 11.4801) # must be turned off for color tracking
+sensor.set_auto_whitebal(False,[60.2071,60.5557,67.1094]) # must be turned off for color tracking
 lcd.init(triple_buffer=True) # Initialize the lcd screen.  Make Non-blocking but 3X RAM
 msk = sensor.alloc_extra_fb(320, 240, sensor.RGB565)
 msk2 = sensor.alloc_extra_fb(320, 240, sensor.RGB565)
 uart = pyb.UART(3)
 uart.init(115200, bits=8, parity=None)
 threshold1 = (0, 100, 10, 94, 6, 79) # orange
-threshold2 = (0, 100, -34, 11, -32, -5) # purple
+threshold2 = (0, 100, -28, 17, -35, -3) # purple
 
 blob_packet = '<fff'
 
@@ -44,19 +44,22 @@ while True:
 
     #filter everything that is outside of the floor
     msk.replace(img)
-    msk = msk.flood_fill(235, 209,seed_threshold=0.3,floating_threshold=0.04,invert=False,clear_background = False)
-    msk = msk.flood_fill(21, 209,seed_threshold=0.3,floating_threshold=0.04,invert=False,clear_background = True)
-    msk = msk.flood_fill(134, 10,seed_threshold=0.3,floating_threshold=0.04,invert=False,clear_background = True)
+    msk = msk.flood_fill(235, 209,seed_threshold=0.25,floating_threshold=0.09,invert=False,clear_background = False)
+    msk = msk.flood_fill(21, 209,seed_threshold=0.25,floating_threshold=0.09,invert=False,clear_background = True)
+    msk = msk.flood_fill(134, 10,seed_threshold=0.3,floating_threshold=0.03,invert=False,clear_background = True)
+    #img = img.replace(msk)
 
-    ##filter out the floor from the ball
+    #filter out the floor from the ball
     msk2.replace(img)
-    msk2 = msk2.flood_fill(235, 209,seed_threshold=0.3,floating_threshold=0.04,invert=False,clear_background = False)
-    msk2 = msk2.flood_fill(21, 209,seed_threshold=0.3,floating_threshold=0.04,invert=False,clear_background = False)
+    msk2 = msk2.flood_fill(235, 209,seed_threshold=0.24,floating_threshold=0.07,invert=False,clear_background = False)
+    msk2 = msk2.flood_fill(21, 209,seed_threshold=0.24,floating_threshold=0.07,invert=False,clear_background = False)
     img = img.replace(msk2)
 
-    #remove the out-of-floor part so only ball on the floor is detected later
+    ###remove the out-of-floor part so only ball on the floor is detected later
     img = img.clear(msk)
-    print(sensor.get_exposure_us())
+
+
+    #print(sensor.get_exposure_us())
     blobs1 = img.find_blobs([threshold1], roi=(0,80,320,160), pixels_threshold=7, area_threshold=7)
     blobs2 = img.find_blobs([threshold2], roi=(0,80,320,160), pixels_threshold=7, area_threshold=7)
 
