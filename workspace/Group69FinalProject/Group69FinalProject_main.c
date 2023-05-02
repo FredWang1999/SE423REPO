@@ -224,6 +224,25 @@ int16_t dan28027adc1 = 0;
 int16_t dan28027adc2 = 0;
 uint16_t MPU9250ignoreCNT = 0;  //This is ignoring the first few interrupts if ADCC_ISR and start sending to IMU after these first few interrupts.
 
+float gateOpen = -89;
+float gateClose = 70;
+void setGate(int isOpen){
+    if (isOpen){
+        setEPWM3A_RCServo(gateOpen);
+    }else{
+        setEPWM3A_RCServo(gateClose);
+    }
+}
+
+float tongueOrange = 0;
+float tonguePurple = 70;
+void setTongue(int isOrange){
+    if (isOrange){
+        setEPWM5A_RCServo(tongueOrange);
+    }else{
+        setEPWM5A_RCServo(tonguePurple);
+    }
+}
 void main(void)
 {
     // PLL, WatchDog, enable Peripheral Clocks
@@ -349,6 +368,8 @@ void main(void)
     //EPwm4Regs.TBCTL.bit.CTRMODE = 0; //unfreeze,  wait to do this right before enabling interrupts
     EDIS;
 
+
+
     // Enable CPU int1 which is connected to CPU-Timer 0, CPU int13
     // which is connected to CPU-Timer 1, and CPU int 14, which is connected
     // to CPU-Timer 2:  int 12 is for the SWI.  
@@ -424,7 +445,8 @@ void main(void)
     // LED5 is GPIO111
     GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
 
-
+    setGate(0);
+    setTongue(1);
     // IDLE loop. Just sit and loop forever (optional):
     while(1)
     {
@@ -881,7 +903,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             }
             break;
 
-        case 20:
+        case 20: //find orange
             // vision code [TH]
             StateTimeCounter++;
             if (MaxColThreshold1 == 0 || MaxAreaThreshold1 < 3){
@@ -903,9 +925,11 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             }
             break;
 
-        case 22:
+        case 22: //open for orange
             vref = 0;
             turn = 0;
+            setGate(1);
+            setTongue(1);
             StateTimeCounter++;
             if (StateTimeCounter == 1000){
                 StateTimeCounter = 0;
@@ -926,6 +950,8 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         case 26:
             vref = 0;
             turn = 0;
+            setGate(0);
+            setTongue(1);
             StateTimeCounter++;
             if (StateTimeCounter == 1000){
                 StateTimeCounter = 0;
@@ -958,6 +984,8 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         case 32:
             vref = 0;
             turn = 0;
+            setGate(1);
+            setTongue(0);
             StateTimeCounter++;
             if (StateTimeCounter == 1000){
                 StateTimeCounter = 0;
@@ -978,6 +1006,8 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         case 36:
             vref = 0;
             turn = 0;
+            setGate(0);
+            setTongue(0);
             StateTimeCounter++;
             if (StateTimeCounter == 1000){
                 StateTimeCounter = 0;
@@ -1129,6 +1159,7 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
 
 }
 
+
 //
 // Connected to PIEIER12_11 (use MINT12 and MG12_11 masks):
 //
@@ -1154,3 +1185,6 @@ __interrupt void SWI3_LowestPriority(void)     // FLASH_CORRECTABLE_ERROR
     PieCtrlRegs.PIEIER12.all = TempPIEIER;
 
 }
+
+
+
