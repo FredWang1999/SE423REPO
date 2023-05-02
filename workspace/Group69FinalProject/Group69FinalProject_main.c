@@ -103,7 +103,7 @@ float colcentroid2 = 0;
 float kpvision = -0.05;
 uint16_t StateTimeCounter = 0;
 static uint16_t AreaThreshold2Collect = 50;
-static uint16_t RowThreshold2State22 = 234;
+static uint16_t RowThreshold2State22 = 195;
 
 uint32_t numThres1 = 0;
 uint32_t numThres2 = 0;
@@ -224,6 +224,7 @@ int16_t dan28027adc1 = 0;
 int16_t dan28027adc2 = 0;
 uint16_t MPU9250ignoreCNT = 0;  //This is ignoring the first few interrupts if ADCC_ISR and start sending to IMU after these first few interrupts.
 
+///////////////gate and tongue////////////////
 float gateOpen = -89;
 float gateClose = 70;
 void setGate(int isOpen){
@@ -243,6 +244,7 @@ void setTongue(int isOrange){
         setEPWM5A_RCServo(tonguePurple);
     }
 }
+////////////////////////////////////////////
 void main(void)
 {
     // PLL, WatchDog, enable Peripheral Clocks
@@ -862,11 +864,11 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 checkfronttally = 0;
             }
             StateTimeCounter++;
-            if ((MaxAreaThreshold2 > AreaThreshold2Collect) && (StateTimeCounter > 2000)){
+            if ((MaxAreaThreshold2 > AreaThreshold2Collect) && (StateTimeCounter > 1000)){
                 StateTimeCounter = 0;
                 RobotState = 30;
             }
-            if ((MaxAreaThreshold1 > MaxAreaThreshold2) && (MaxAreaThreshold1 > AreaThreshold2Collect) && (StateTimeCounter > 2000)){
+            if ((MaxAreaThreshold1 > MaxAreaThreshold2) && (MaxAreaThreshold1 > AreaThreshold2Collect) && (StateTimeCounter > 1000)){
                 StateTimeCounter = 0;
                 RobotState = 20;
             }
@@ -917,6 +919,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             else {
                 vref = 0.75;
                 turn = kpvision * (0 - colcentroid1);
+                setTongue(1);
             }
 
             if (MaxRowThreshold1 > RowThreshold2State22){
@@ -928,9 +931,12 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         case 22: //open for orange
             vref = 0;
             turn = 0;
-            setGate(1);
-            setTongue(1);
+
             StateTimeCounter++;
+            if (StateTimeCounter == 500){
+                setGate(1);
+                setTongue(1);
+            }
             if (StateTimeCounter == 1000){
                 StateTimeCounter = 0;
                 RobotState = 24;
@@ -973,6 +979,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             else {
                 vref = 0.75;
                 turn = kpvision * (0 - colcentroid2);
+                setTongue(0);
             }
 
             if (MaxRowThreshold2 > RowThreshold2State22){
@@ -984,9 +991,11 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         case 32:
             vref = 0;
             turn = 0;
-            setGate(1);
-            setTongue(0);
             StateTimeCounter++;
+            if (StateTimeCounter == 500){
+                setGate(1);
+                setTongue(0);
+            }
             if (StateTimeCounter == 1000){
                 StateTimeCounter = 0;
                 RobotState = 34;
