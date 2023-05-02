@@ -117,7 +117,7 @@ char mapstart[176] =      //16x11
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
 
-// 230502 YASU declared edgeMap for obstacles, it has the same dimension to the map
+// 230502 YASU declared edgeMap for obstacles, it has the same dimension to the map.
 typedef struct edge{
     _Bool isEdge;
     _Bool isFound;
