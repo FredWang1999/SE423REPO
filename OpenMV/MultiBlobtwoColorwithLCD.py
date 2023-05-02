@@ -11,8 +11,8 @@ msk = sensor.alloc_extra_fb(320, 240, sensor.RGB565)
 msk2 = sensor.alloc_extra_fb(320, 240, sensor.RGB565)
 uart = pyb.UART(3)
 uart.init(115200, bits=8, parity=None)
-threshold1 = (0, 100, 10, 94, 6, 79) # orange
-threshold2 = (0, 100, -34, 11, -32, -5) # purple
+threshold1 = (66, 100, 10, 42, 8, 46) # orange
+threshold2 = (64, 100, 4, 22, -35, -7) # purple
 
 blob_packet = '<fff'
 
@@ -39,26 +39,9 @@ while True:
                 toggle = 0
                 offcount = 0
     img = sensor.snapshot()
-
-    #masking and only search for ball on the ground
-
-    #filter everything that is outside of the floor
-    msk.replace(img)
-    msk = msk.flood_fill(235, 209,seed_threshold=0.3,floating_threshold=0.04,invert=False,clear_background = False)
-    msk = msk.flood_fill(21, 209,seed_threshold=0.3,floating_threshold=0.04,invert=False,clear_background = True)
-    msk = msk.flood_fill(134, 10,seed_threshold=0.3,floating_threshold=0.04,invert=False,clear_background = True)
-
-    ##filter out the floor from the ball
-    msk2.replace(img)
-    msk2 = msk2.flood_fill(235, 209,seed_threshold=0.3,floating_threshold=0.04,invert=False,clear_background = False)
-    msk2 = msk2.flood_fill(21, 209,seed_threshold=0.3,floating_threshold=0.04,invert=False,clear_background = False)
-    img = img.replace(msk2)
-
-    #remove the out-of-floor part so only ball on the floor is detected later
-    img = img.clear(msk)
     print(sensor.get_exposure_us())
-    blobs1 = img.find_blobs([threshold1], roi=(0,80,320,160), pixels_threshold=7, area_threshold=7)
-    blobs2 = img.find_blobs([threshold2], roi=(0,80,320,160), pixels_threshold=7, area_threshold=7)
+    blobs1 = img.find_blobs([threshold1], roi=(0,80,320,160), pixels_threshold=20, area_threshold=20)
+    blobs2 = img.find_blobs([threshold2], roi=(0,80,320,160), pixels_threshold=20, area_threshold=20)
 
     if blobs1:
         blob1_sort = sorted(blobs1, key = lambda b: b.pixels(), reverse=True)
