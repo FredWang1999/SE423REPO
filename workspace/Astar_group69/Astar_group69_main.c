@@ -403,7 +403,7 @@ void main(void)
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);  // Currently not used for any purpose
     ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 100000); // !!!!! Important, Used to command LADAR every 100ms.  Do not Change.
-    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 40000); // Currently not used for any purpose
+    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 1000); // Currently not used for any purpose
 
     // Enable CpuTimer Interrupt bit TIE
     CpuTimer0Regs.TCR.all = 0x4000;
@@ -681,6 +681,8 @@ __interrupt void cpu_timer2_isr(void)
     //      UARTPrint = 1;
     //  }
 
+    int edgeIndex = 0;
+
     for (int i=0 ; i<75 ; ++i)
     {
         // 230502 YASU if it's a candidate, check it's vertical or horizontal edge.
@@ -692,12 +694,13 @@ __interrupt void cpu_timer2_isr(void)
                 if (horiEdgeCounter < SOLID_OBS_NUM)
                 {
                     horiEdgeCounter++;
-                    sumHoriEdgeX += horiEdgeCounter*obstacleCandidate[i].x;
+                    sumHoriEdgeX += (horiEdgeCounter*obstacleCandidate[i].x + 5);
                 }
                 else
                 {
-                    if (edgeMap[(int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY].isFound != 1)
-                        edgeMap[(int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY].isFound = 1;
+                    edgeIndex = (int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY;
+                    if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
+                        edgeMap[edgeIndex].isFound = 1;
 
                     sumHoriEdgeX = 0.0;
                     prevEdgeY = 0;
@@ -716,12 +719,13 @@ __interrupt void cpu_timer2_isr(void)
                 if (vertEdgeCounter < SOLID_OBS_NUM)
                 {
                     vertEdgeCounter++;
-                    sumVertEdgeY += vertEdgeCounter*obstacleCandidate[i].y;
+                    sumVertEdgeY += (11 - vertEdgeCounter*obstacleCandidate[i].y);
                 }
                 else
                 {
-                    if (edgeMap[prevEdgeX * 11 + (int) round(sumVertEdgeY/vertEdgeCounter)].isFound != 1)
-                        edgeMap[prevEdgeX * 11 + (int) round(sumVertEdgeY/vertEdgeCounter)].isFound = 1;
+                    edgeIndex = (int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY;
+                    if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
+                        edgeMap[edgeIndex].isFound = 1;
 
                     sumVertEdgeY = 0.0;
                     prevEdgeX = 0;
