@@ -80,6 +80,9 @@ uint32_t AstarendEqualsStart = 0;
 uint32_t AstaroutsideMap = 0;
 uint32_t AstarstartstopObstacle = 0;
 uint32_t AstarResetMap = 0;
+
+int edgeIndex = 0;
+
 // For A* Default map with no obstacles just door opening
 char map[176] =      //16x11
 {   '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
@@ -112,6 +115,24 @@ char mapstart[176] =      //16x11
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     'x', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', 'x',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
+
+char testMap[176] =      //16x11
+{   '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
@@ -537,34 +558,39 @@ void main(void)
     {
         if (UARTPrint == 1 ) {
 
-            if (readbuttons() == 0) {
-                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
-                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
-            } else if (readbuttons() == 1) {
-                UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
-                UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
-				//UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
-                //UART_printfLine(2,"Ln1:%.3f Ln2:%.3f",printLinux1,printLinux2);
-            } else if (readbuttons() == 2) {
-                UART_printfLine(1,"O2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold1,NextLargestColThreshold1,NextLargestRowThreshold1);
-                UART_printfLine(2,"P2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold2,NextLargestColThreshold2,NextLargestRowThreshold2);
-                // UART_printfLine(1,"%.2f %.2f",adcC2Volt,adcC3Volt);
-                // UART_printfLine(2,"%.2f %.2f",adcC4Volt,adcC5Volt);
-            } else if (readbuttons() == 4) {
-                UART_printfLine(1,"O3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold1,NextNextLargestColThreshold1,NextNextLargestRowThreshold1);
-                UART_printfLine(2,"P3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold2,NextNextLargestColThreshold2,NextNextLargestRowThreshold2);
-                // UART_printfLine(1,"L:%.3f R:%.3f",LeftVel,RightVel);
-                // UART_printfLine(2,"uL:%.2f uR:%.2f",uLeft,uRight);
-            } else if (readbuttons() == 8) {
-                UART_printfLine(1,"020x%.2f y%.2f",ladar_pts[20].x,ladar_pts[20].y);
-                UART_printfLine(2,"150x%.2f y%.2f",ladar_pts[150].x,ladar_pts[150].y);
-            } else if (readbuttons() == 3) {
-                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
-                UART_printfLine(2,"MPU:%.2f LPR:%.2f",gyro9250_radians,gyroLPR510_radians);
-            } else if (readbuttons() == 5) {
-                UART_printfLine(1,"Ox:%.2f:Oy:%.2f:Oa%.2f",OPTITRACKps.x,OPTITRACKps.y,OPTITRACKps.theta);
-                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
-            }
+//            if (readbuttons() == 0) {
+//                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
+//                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
+//            } else if (readbuttons() == 1) {
+//                UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
+//                UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
+//				//UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
+//                //UART_printfLine(2,"Ln1:%.3f Ln2:%.3f",printLinux1,printLinux2);
+//            } else if (readbuttons() == 2) {
+//                UART_printfLine(1,"O2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold1,NextLargestColThreshold1,NextLargestRowThreshold1);
+//                UART_printfLine(2,"P2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold2,NextLargestColThreshold2,NextLargestRowThreshold2);
+//                // UART_printfLine(1,"%.2f %.2f",adcC2Volt,adcC3Volt);
+//                // UART_printfLine(2,"%.2f %.2f",adcC4Volt,adcC5Volt);
+//            } else if (readbuttons() == 4) {
+//                UART_printfLine(1,"O3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold1,NextNextLargestColThreshold1,NextNextLargestRowThreshold1);
+//                UART_printfLine(2,"P3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold2,NextNextLargestColThreshold2,NextNextLargestRowThreshold2);
+//                // UART_printfLine(1,"L:%.3f R:%.3f",LeftVel,RightVel);
+//                // UART_printfLine(2,"uL:%.2f uR:%.2f",uLeft,uRight);
+//            } else if (readbuttons() == 8) {
+//                UART_printfLine(1,"020x%.2f y%.2f",ladar_pts[20].x,ladar_pts[20].y);
+//                UART_printfLine(2,"150x%.2f y%.2f",ladar_pts[150].x,ladar_pts[150].y);
+//            } else if (readbuttons() == 3) {
+//                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
+//                UART_printfLine(2,"MPU:%.2f LPR:%.2f",gyro9250_radians,gyroLPR510_radians);
+//            } else if (readbuttons() == 5) {
+//                UART_printfLine(1,"Ox:%.2f:Oy:%.2f:Oa%.2f",OPTITRACKps.x,OPTITRACKps.y,OPTITRACKps.theta);
+//                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
+//            }
+
+            UART_printfLine(1, "Edge: %.2f", edgeIndex);
+//            if ( edgeMap[edgeIndex].isFound == 1) {
+//                UART_printfLine(1, "Edge: %.2f", edgeIndex);
+//            }
 
             UARTPrint = 0;
         }
@@ -677,11 +703,9 @@ __interrupt void cpu_timer2_isr(void)
 
     CpuTimer2.InterruptCount++;
 
-    //  if ((CpuTimer2.InterruptCount % 10) == 0) {
-    //      UARTPrint = 1;
-    //  }
-
-    int edgeIndex = 0;
+      if ((CpuTimer2.InterruptCount % 10) == 0) {
+//          UARTPrint = 1;
+      }
 
     for (int i=0 ; i<75 ; ++i)
     {
@@ -698,9 +722,11 @@ __interrupt void cpu_timer2_isr(void)
                 }
                 else
                 {
-                    edgeIndex = (int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY;
-                    if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
+                    edgeIndex =  prevEdgeY * 11 + (int) round(sumHoriEdgeX/horiEdgeCounter);
+//                    edgeIndex = (int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY;
+                    if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1)) {
                         edgeMap[edgeIndex].isFound = 1;
+                    }
 
                     sumHoriEdgeX = 0.0;
                     prevEdgeY = 0;
@@ -723,9 +749,10 @@ __interrupt void cpu_timer2_isr(void)
                 }
                 else
                 {
-                    edgeIndex = (int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY;
-                    if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
+                    edgeIndex = (int) round(sumVertEdgeY/vertEdgeCounter) * 11 + prevEdgeX;
+                    if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1)){
                         edgeMap[edgeIndex].isFound = 1;
+                    }
 
                     sumVertEdgeY = 0.0;
                     prevEdgeX = 0;
