@@ -137,10 +137,10 @@ obsCandidate obstacleCandidate[75];
 // 230502 YASU declared horiEdgeCounter & vertEdgeCounter to determine solid obstacles,
 // If horiEdgeCounter is larger than SOLID_OBS_NUM, we say that there's an horizontal edge on the x position, for y, vice versa.
 #define SOLID_OBS_NUM 8
-int horiEdgeCounter = 0;
-int vertEdgeCounter = 0;
+float horiEdgeCounter = 0;
+float vertEdgeCounter = 0;
 float sumHoriEdgeX = 0;
-float sumVertEdgeX = 0;
+float sumVertEdgeY = 0;
 int prevEdgeX = 0;
 int prevEdgeY = 0;
 
@@ -696,8 +696,8 @@ __interrupt void cpu_timer2_isr(void)
                 }
                 else
                 {
-                    if (edgeMap[round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY].isFound != 1)
-                        edgeMap[round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY].isFound = 1;
+                    if (edgeMap[(int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY].isFound != 1)
+                        edgeMap[(int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY].isFound = 1;
 
                     sumHoriEdgeX = 0.0;
                     prevEdgeY = 0;
@@ -720,8 +720,8 @@ __interrupt void cpu_timer2_isr(void)
                 }
                 else
                 {
-                    if (edgeMap[prevEdgeX * 11 + round(sumVertEdgeY/vertEdgeCounter)].isFound != 1)
-                        edgeMap[prevEdgeX * 11 + round(sumVertEdgeY/vertEdgeCounter)].isFound = 1;
+                    if (edgeMap[prevEdgeX * 11 + (int) round(sumVertEdgeY/vertEdgeCounter)].isFound != 1)
+                        edgeMap[prevEdgeX * 11 + (int) round(sumVertEdgeY/vertEdgeCounter)].isFound = 1;
 
                     sumVertEdgeY = 0.0;
                     prevEdgeX = 0;
@@ -743,14 +743,14 @@ __interrupt void cpu_timer2_isr(void)
             // 230502 YASU if it's not candidate,
             // clear all the counters and positions.
             horiEdgeCounter = 0;
-            vectEdgeCounter = 0;
+            vertEdgeCounter = 0;
             prevEdgeX = 0;
             prevEdgeY = 0;
         }
     }
 }
 
-void setF28027EPWM1A(float controleffort){
+void setF28027EPWM1A(float controleffort) {
     if (controleffort < -10) {
         controleffort = -10;
     }
