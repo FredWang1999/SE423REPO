@@ -156,8 +156,9 @@ typedef struct obsCandidate{
 
 #define NUM_CANDIDATE 5
 #define CANDIDATE_DIST 4
-//obsCandidate obstacleCandidate[75];
+// 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
 obsCandidate obstacleCandidate[NUM_CANDIDATE];
+int obsDetectAnglePeriod = 180 / (NUM_CANDIDATE-1);
 
 // 230502 YASU declared horiEdgeCounter & vertEdgeCounter to determine solid obstacles,
 // If horiEdgeCounter is larger than SOLID_OBS_NUM, we say that there's an horizontal edge on the x position, for y, vice versa.
@@ -1309,6 +1310,10 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
     // Insert SWI ISR Code here.......
     // LED1
     GpioDataRegs.GPATOGGLE.bit.GPIO22 = 1;
+
+    // 230503 YASU convert the obstacle's position from robot coordinate to Astar coordinate (turn 90 degrees clockwise)
+    // (x_new, y_new) = (-y, x)
+
     if (LADARpingpong == 1) {
         // LADARrightfront is the min of dist 52, 53, 54, 55, 56
         LADARrightfront = 19; // 19 is greater than max feet
@@ -1336,18 +1341,20 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         // Else, set them to zero
         for (int i=0 ; i<NUM_CANDIDATE ; ++i)
         {
+            // 230503 YASU clear all data
             obstacleCandidate[i].x = 0;
             obstacleCandidate[i].y = 0;
             obstacleCandidate[i].distance = 0.0;
             obstacleCandidate[i].isCandidate = 0;
 
-            for (LADARi = 26+i*45; LADARi <= 30+i*45 ; LADARi++) {
+            // 230503 YASU get average of ladar's info
+            for (LADARi = 26+i*obsDetectAnglePeriod; LADARi <= 30+i*obsDetectAnglePeriod ; LADARi++) {
                 obstacleCandidate[i].distance += ladar_data[LADARi].distance_ping;
-                obstacleCandidate[i].x += ladar_pts[LADARi].x;
-                obstacleCandidate[i].y += ladar_pts[LADARi].y;
+                obstacleCandidate[i].x += (-ladar_pts[LADARi].y);
+                obstacleCandidate[i].y += ladar_pts[LADARi].x;
             }
-
             obstacleCandidate[i].distance /= 5.0;
+
             if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
             {
                 obstacleCandidate[i].isCandidate = 1;
@@ -1389,18 +1396,20 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         // Else, set them to zero
         for (int i=0 ; i<NUM_CANDIDATE ; ++i)
         {
+            // 230503 YASU clear all data
             obstacleCandidate[i].x = 0;
             obstacleCandidate[i].y = 0;
             obstacleCandidate[i].distance = 0.0;
             obstacleCandidate[i].isCandidate = 0;
 
-            for (LADARi = 26+i*45; LADARi <= 30+i*45 ; LADARi++) {
+            // 230503 YASU get average of ladar's info
+            for (LADARi = 26+i*obsDetectAnglePeriod; LADARi <= 30+i*obsDetectAnglePeriod ; LADARi++) {
                 obstacleCandidate[i].distance += ladar_data[LADARi].distance_ping;
-                obstacleCandidate[i].x += ladar_pts[LADARi].x;
-                obstacleCandidate[i].y += ladar_pts[LADARi].y;
+                obstacleCandidate[i].x += (-ladar_pts[LADARi].y);
+                obstacleCandidate[i].y += ladar_pts[LADARi].x;
             }
-
             obstacleCandidate[i].distance /= 5.0;
+
             if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
             {
                 obstacleCandidate[i].isCandidate = 1;
