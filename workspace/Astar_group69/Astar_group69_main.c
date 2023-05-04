@@ -132,7 +132,7 @@ char testMap[176] =      //16x11
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    'x', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', 'x',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
@@ -155,11 +155,11 @@ typedef struct obsCandidate{
     _Bool isCandidate;
 } obsCandidate;
 
-#define NUM_CANDIDATE 5
-#define CANDIDATE_DIST 4
+#define NUM_CANDIDATE 75
+#define CANDIDATE_DIST 18
 // 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
 obsCandidate obstacleCandidate[NUM_CANDIDATE];
-int obsDetectAnglePeriod = 180 / (NUM_CANDIDATE-1);
+float obsDetectAnglePeriod = 180.0 / (NUM_CANDIDATE-1);
 
 // 230502 YASU declared horiEdgeCounter & vertEdgeCounter to determine solid obstacles,
 // If horiEdgeCounter is larger than SOLID_OBS_NUM, we say that there's an horizontal edge on the x position, for y, vice versa.
@@ -715,7 +715,7 @@ __interrupt void cpu_timer2_isr(void)
 
     for (int i=0 ; i<NUM_CANDIDATE ; ++i)
     {
-        edgeIndex = obstacleCandidate[i].y * 11 + obstacleCandidate[i].x;
+        edgeIndex = (11-obstacleCandidate[i].y) * 11 + obstacleCandidate[i].x - 5;
 
         if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
         {
@@ -725,80 +725,35 @@ __interrupt void cpu_timer2_isr(void)
             }
             else
             {
-                edgeMap[edgeIndex].isFound;
+                edgeMap[edgeIndex].isFound = 1;
             }
         }
+    }
 
-
-        // 230502 YASU if it's a candidate, check it's vertical or horizontal edge.
-//        if (obstacleCandidate[i].isCandidate)
-//        {
-//            // 230502 YASU if it's likely to be a horizontal edge,
-//            if (prevEdgeY == obstacleCandidate[i].y)
-//            {
-//                if (horiEdgeCounter < SOLID_OBS_NUM)
-//                {
-//                    horiEdgeCounter++;
-//                    sumHoriEdgeX += (horiEdgeCounter*obstacleCandidate[i].x + 5);
-//                }
-//                else
-//                {
-//                    edgeIndex =  prevEdgeY * 11 + (int) round(sumHoriEdgeX/horiEdgeCounter);
-////                    edgeIndex = (int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY;
-//                    if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1)) {
-//                        edgeMap[edgeIndex].isFound = 1;
-//                    }
-//
-//                    sumHoriEdgeX = 0.0;
-//                    prevEdgeY = 0;
-//                    horiEdgeCounter = 0;
-//                }
-//            }
-//            else
-//            {
-//                sumHoriEdgeX = 0;
-//                prevEdgeY = 0;
-//                horiEdgeCounter = 0;
-//            }
-//
-//            if (prevEdgeX == obstacleCandidate[i].x)
-//            {
-//                if (vertEdgeCounter < SOLID_OBS_NUM)
-//                {
-//                    vertEdgeCounter++;
-//                    sumVertEdgeY += (11 - vertEdgeCounter*obstacleCandidate[i].y);
-//                }
-//                else
-//                {
-//                    edgeIndex = (int) round(sumVertEdgeY/vertEdgeCounter) * 11 + prevEdgeX;
-//                    if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1)){
-//                        edgeMap[edgeIndex].isFound = 1;
-//                    }
-//
-//                    sumVertEdgeY = 0.0;
-//                    prevEdgeX = 0;
-//                    vertEdgeCounter = 0;
-//                }
-//            }
-//            else
-//            {
-//                sumVertEdgeY = 0.0;
-//                prevEdgeX = 0;
-//                vertEdgeCounter = 0;
-//            }
-//
-//            prevEdgeX = obstacleCandidate[i].x;
-//            prevEdgeY = obstacleCandidate[i].y;
-//        }
-//        else
-//        {
-//            // 230502 YASU if it's not candidate,
-//            // clear all the counters and positions.
-//            horiEdgeCounter = 0;
-//            vertEdgeCounter = 0;
-//            prevEdgeX = 0;
-//            prevEdgeY = 0;
-//        }
+    for (int i=0 ; i<176 ; ++i)
+    {
+        int row = i/11;
+        int col = i%11;
+        int neighborRow;
+        int neighborCol;
+        if (edgeMap[i].isFound)
+        {
+            for (int j=-1 ; j<=1 ; j+=2)
+            {
+                for (int k=-1 ; k<=1 ; k+=2)
+                {
+                    neighborRow = row + j;
+                    neighborCol = col + k;
+                    if ((neighborRow >= 0) && (neighborCol >= 0) && edgeMap[neighborRow*11 + neighborCol].isFound)
+                    {
+                        testMap[min(row, neighborRow)*11 + min(col, neighborCol)] = 'x';
+                        testMap[(min(row, neighborRow) + 1)*11 + min(col, neighborCol)] = 'x';
+                        testMap[min(row, neighborRow)*11 + min(col, neighborCol) + 1] = 'x';
+                        testMap[(min(row, neighborRow) + 1)*11 + min(col, neighborCol) + 1] = 'x';
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1364,18 +1319,18 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             obstacleCandidate[i].isCandidate = 0;
 
             // 230503 YASU get average of ladar's info
-            for (LADARi = 26+i*obsDetectAnglePeriod; LADARi <= 30+i*obsDetectAnglePeriod ; LADARi++) {
+            for (LADARi = (int) i*obsDetectAnglePeriod; LADARi <= (int) i*obsDetectAnglePeriod + 2 ; LADARi++) {
                 obstacleCandidate[i].distance += ladar_data[LADARi].distance_ping;
                 obstacleCandidate[i].x += ladar_pts[LADARi].x;
                 obstacleCandidate[i].y += ladar_pts[LADARi].y;
             }
-            obstacleCandidate[i].distance /= 5.0;
+            obstacleCandidate[i].distance /= 3.0;
 
             if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
             {
                 obstacleCandidate[i].isCandidate = 1;
-                obstacleCandidate[i].x /= 5.0;
-                obstacleCandidate[i].y /= 5.0;
+                obstacleCandidate[i].x /= 3.0;
+                obstacleCandidate[i].y /= 3.0;
             }
             else
             {
@@ -1419,18 +1374,18 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             obstacleCandidate[i].isCandidate = 0;
 
             // 230503 YASU get average of ladar's info
-            for (LADARi = 26+i*obsDetectAnglePeriod; LADARi <= 30+i*obsDetectAnglePeriod ; LADARi++) {
+            for (LADARi = (int) i*obsDetectAnglePeriod; LADARi <= (int) i*obsDetectAnglePeriod+2 ; LADARi++) {
                 obstacleCandidate[i].distance += ladar_data[LADARi].distance_ping;
                 obstacleCandidate[i].x += ladar_pts[LADARi].x;
                 obstacleCandidate[i].y += ladar_pts[LADARi].y;
             }
-            obstacleCandidate[i].distance /= 5.0;
+            obstacleCandidate[i].distance /= 3.0;
 
             if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
             {
                 obstacleCandidate[i].isCandidate = 1;
-                obstacleCandidate[i].x /= 5.0;
-                obstacleCandidate[i].y /= 5.0;
+                obstacleCandidate[i].x /= 3.0;
+                obstacleCandidate[i].y /= 3.0;
             }
             else
             {
