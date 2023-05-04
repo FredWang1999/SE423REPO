@@ -24,6 +24,8 @@
 #include "SE423Lib.h"
 #include "OptiTrack.h"
 
+
+
 #define PI          3.1415926535897932384626433832795
 #define TWOPI       6.283185307179586476925286766559
 #define HALFPI      1.5707963267948966192313216916398
@@ -744,12 +746,15 @@ __interrupt void cpu_timer2_isr(void)
                 {
                     neighborRow = row + j;
                     neighborCol = col + k;
-                    if ((neighborRow >= 0) && (neighborCol >= 0) && edgeMap[neighborRow*11 + neighborCol].isFound)
+                    if ((neighborRow >= 0) && (neighborCol >= 0) && (neighborRow <= 10) && (neighborCol <= 10) &&(edgeMap[neighborRow*11 + neighborCol].isFound == 1))
                     {
-                        testMap[min(row, neighborRow)*11 + min(col, neighborCol)] = 'x';
-                        testMap[(min(row, neighborRow) + 1)*11 + min(col, neighborCol)] = 'x';
-                        testMap[min(row, neighborRow)*11 + min(col, neighborCol) + 1] = 'x';
-                        testMap[(min(row, neighborRow) + 1)*11 + min(col, neighborCol) + 1] = 'x';
+                        int minRow = MIN(row,neighborRow);
+                        int minCol = MIN(col,neighborCol);
+
+                        testMap[minRow*11 + minCol] = 'x';
+                        testMap[(minRow + 1)*11 + minCol] = 'x';
+                        testMap[minRow*11 + minCol + 1] = 'x';
+                        testMap[(minRow + 1)*11 + minCol + 1] = 'x';
                     }
                 }
             }
