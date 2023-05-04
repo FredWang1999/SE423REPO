@@ -158,10 +158,10 @@ typedef struct obsCandidate{
 } obsCandidate;
 
 #define NUM_CANDIDATE 75
-#define CANDIDATE_DIST 18
+#define CANDIDATE_DIST 5
 // 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
 obsCandidate obstacleCandidate[NUM_CANDIDATE];
-float obsDetectAnglePeriod = 180.0 / (NUM_CANDIDATE-1);
+float obsDetectAnglePeriod = 228.0 / (NUM_CANDIDATE-1);
 
 // 230502 YASU declared horiEdgeCounter & vertEdgeCounter to determine solid obstacles,
 // If horiEdgeCounter is larger than SOLID_OBS_NUM, we say that there's an horizontal edge on the x position, for y, vice versa.
@@ -738,6 +738,9 @@ __interrupt void cpu_timer2_isr(void)
         int col = i%11;
         int neighborRow;
         int neighborCol;
+
+        // 230504 YASU if an edge is found, search the other four neighbor edges.
+        // See if they form an obstacle or not.
         if (edgeMap[i].isFound)
         {
             for (int j=-1 ; j<=1 ; j+=2)
@@ -746,7 +749,7 @@ __interrupt void cpu_timer2_isr(void)
                 {
                     neighborRow = row + j;
                     neighborCol = col + k;
-                    if ((neighborRow >= 0) && (neighborCol >= 0) && (neighborRow <= 10) && (neighborCol <= 10) &&(edgeMap[neighborRow*11 + neighborCol].isFound == 1))
+                    if ((neighborRow >= 0) && (neighborCol >= 0) && (neighborRow <= 10) && (neighborCol <= 10) && (edgeMap[neighborRow*11 + neighborCol].isFound == 1))
                     {
                         int minRow = MIN(row,neighborRow);
                         int minCol = MIN(col,neighborCol);
