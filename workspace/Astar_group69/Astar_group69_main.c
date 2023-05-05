@@ -157,11 +157,11 @@ typedef struct obsCandidate{
     _Bool isCandidate;
 } obsCandidate;
 
-#define NUM_CANDIDATE 75
+#define NUM_CANDIDATE 9
 #define CANDIDATE_DIST 5
 // 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
 obsCandidate obstacleCandidate[NUM_CANDIDATE];
-float obsDetectAnglePeriod = 228.0 / (NUM_CANDIDATE-1);
+float obsDetectAnglePeriod = 180.0 / (NUM_CANDIDATE-1);
 
 // 230502 YASU declared horiEdgeCounter & vertEdgeCounter to determine solid obstacles,
 // If horiEdgeCounter is larger than SOLID_OBS_NUM, we say that there's an horizontal edge on the x position, for y, vice versa.
@@ -1327,18 +1327,18 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             obstacleCandidate[i].isCandidate = 0;
 
             // 230503 YASU get average of ladar's info
-            for (LADARi = (int) i*obsDetectAnglePeriod; LADARi <= (int) i*obsDetectAnglePeriod + 2 ; LADARi++) {
+            for (LADARi = (int) 26 + i*obsDetectAnglePeriod; LADARi <= (int) 30 + i*obsDetectAnglePeriod ; LADARi++) {
                 obstacleCandidate[i].distance += ladar_data[LADARi].distance_ping;
                 obstacleCandidate[i].x += ladar_pts[LADARi].x;
                 obstacleCandidate[i].y += ladar_pts[LADARi].y;
             }
-            obstacleCandidate[i].distance /= 3.0;
+            obstacleCandidate[i].distance /= 5.0;
 
             if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
             {
                 obstacleCandidate[i].isCandidate = 1;
-                obstacleCandidate[i].x /= 3.0;
-                obstacleCandidate[i].y /= 3.0;
+                obstacleCandidate[i].x /= 5.0;
+                obstacleCandidate[i].y /= 5.0;
             }
             else
             {
@@ -1382,18 +1382,18 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             obstacleCandidate[i].isCandidate = 0;
 
             // 230503 YASU get average of ladar's info
-            for (LADARi = (int) i*obsDetectAnglePeriod; LADARi <= (int) i*obsDetectAnglePeriod+2 ; LADARi++) {
+            for (LADARi = (int) 26 + i*obsDetectAnglePeriod; LADARi <= (int) 30 + i*obsDetectAnglePeriod ; LADARi++) {
                 obstacleCandidate[i].distance += ladar_data[LADARi].distance_ping;
                 obstacleCandidate[i].x += ladar_pts[LADARi].x;
                 obstacleCandidate[i].y += ladar_pts[LADARi].y;
             }
-            obstacleCandidate[i].distance /= 3.0;
+            obstacleCandidate[i].distance /= 5.0;
 
             if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
             {
                 obstacleCandidate[i].isCandidate = 1;
-                obstacleCandidate[i].x /= 3.0;
-                obstacleCandidate[i].y /= 3.0;
+                obstacleCandidate[i].x /= 5.0;
+                obstacleCandidate[i].y /= 5.0;
             }
             else
             {
