@@ -83,7 +83,8 @@ uint32_t AstaroutsideMap = 0;
 uint32_t AstarstartstopObstacle = 0;
 uint32_t AstarResetMap = 0;
 
-int edgeIndex = 0;
+int obsIndex = 0;
+_Bool ReAstar = 0;
 
 // For A* Default map with no obstacles just door opening
 char map[176] =      //16x11
@@ -141,13 +142,20 @@ char testMap[176] =      //16x11
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
 
 // 230502 YASU declared edgeMap for obstacles, it has the same dimension to the map.
-typedef struct edge{
-    _Bool isEdge;
+//typedef struct edge{
+//    _Bool isEdge;
+//    _Bool isFound;
+//    int counter;
+//}edge;
+//
+//edge edgeMap[176];
+
+typedef struct obs{
     _Bool isFound;
     int counter;
-}edge;
+}obs;
 
-edge edgeMap[176];
+obs obsMap[176];
 
 // 230502 YASU declared obstacleCandidate to store LiDAR distances less than 4
 typedef struct obsCandidate{
@@ -157,8 +165,8 @@ typedef struct obsCandidate{
     _Bool isCandidate;
 } obsCandidate;
 
-#define NUM_CANDIDATE 5
-#define CANDIDATE_DIST 5
+#define NUM_CANDIDATE 9
+#define CANDIDATE_DIST 10
 // 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
 obsCandidate obstacleCandidate[NUM_CANDIDATE];
 float obsDetectAnglePeriod = 180.0 / (NUM_CANDIDATE-1);
@@ -167,7 +175,7 @@ int calcLadarXY = 0;
 
 // 230502 YASU declared horiEdgeCounter & vertEdgeCounter to determine solid obstacles,
 // If horiEdgeCounter is larger than SOLID_OBS_NUM, we say that there's an horizontal edge on the x position, for y, vice versa.
-#define SOLID_OBS_NUM 20
+#define SOLID_OBS_NUM 8
 float horiEdgeCounter = 0;
 float vertEdgeCounter = 0;
 float sumHoriEdgeX = 0;
@@ -434,7 +442,7 @@ void main(void)
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);  // Currently not used for any purpose
     ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 100000); // !!!!! Important, Used to command LADAR every 100ms.  Do not Change.
-    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 1000); // Currently not used for any purpose
+    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 10000); // Currently not used for any purpose
 
     // Enable CpuTimer Interrupt bit TIE
     CpuTimer0Regs.TCR.all = 0x4000;
@@ -443,10 +451,8 @@ void main(void)
 
     DELAY_US(1000000);  // Delay 1 second giving Lidar Time to power on after system power on
 
-    init_serialSCIA(&SerialA,115200);
     init_serialSCIB(&SerialB,19200);
     init_serialSCIC(&SerialC,19200);
-	init_serialSCID(&SerialD,2083332);
 
     for (LADARi = 0; LADARi < 228; LADARi++) {
         ladar_data[LADARi].angle = ((3*LADARi+44)*0.3515625-135)*0.01745329; //0.017453292519943 is pi/180, multiplication is faster; 0.3515625 is 360/1024
@@ -521,6 +527,9 @@ void main(void)
     PieCtrlRegs.PIEACK.all = PIEACK_GROUP6;
     EPwm4Regs.TBCTL.bit.CTRMODE = 0; //unfreeze, and enter up count mode
 
+    init_serialSCIA(&SerialA,115200);
+    init_serialSCID(&SerialD,2083332);
+
     // Enable global Interrupts and higher priority real-time debug events
     EINT;  // Enable Global interrupt INTM
     ERTM;  // Enable Global realtime interrupt DBGM
@@ -546,21 +555,22 @@ void main(void)
     GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
 
     // 230502 YASU initialize edgeMap
-    for (int i=11 ; i<121 ; ++i)
-    {
-        int row = i/11;
-        int col = i%11;
+//    for (int i=11 ; i<121 ; ++i)
+//    {
+//        int row = i/11;
+//        int col = i%11;
+//
+//        if (((row % 2) == 1) && ((col % 2) == 0))
+//        {
+//            edgeMap[row*11 + col].isEdge = 1;
+//        }
+//
+//        if (((row % 2) == 0) && ((col % 2) == 1))
+//        {
+//            edgeMap[row*11 + col].isEdge = 1;
+//        }
+//    }
 
-        if (((row % 2) == 1) && ((col % 2) == 0))
-        {
-            edgeMap[row*11 + col].isEdge = 1;
-        }
-
-        if (((row % 2) == 0) && ((col % 2) == 1))
-        {
-            edgeMap[row*11 + col].isEdge = 1;
-        }
-    }
 
 
     // IDLE loop. Just sit and loop forever (optional):
@@ -574,7 +584,7 @@ void main(void)
 //            } else if (readbuttons() == 1) {
 //                UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
 //                UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
-//				//UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
+//              //UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
 //                //UART_printfLine(2,"Ln1:%.3f Ln2:%.3f",printLinux1,printLinux2);
 //            } else if (readbuttons() == 2) {
 //                UART_printfLine(1,"O2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold1,NextLargestColThreshold1,NextLargestRowThreshold1);
@@ -597,7 +607,7 @@ void main(void)
 //                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
 //            }
 
-            UART_printfLine(1, "Edge: %.2f", edgeIndex);
+//            UART_printfLine(1, "Edge: %.2f", edgeIndex);
 //            if ( edgeMap[edgeIndex].isFound == 1) {
 //                UART_printfLine(1, "Edge: %.2f", edgeIndex);
 //            }
@@ -717,54 +727,86 @@ __interrupt void cpu_timer2_isr(void)
 //          UARTPrint = 1;
       }
 
+    int obsRow;
+    int obsCol;
+
+    ReAstar = 0;
     for (int i=0 ; i<NUM_CANDIDATE ; ++i)
     {
-        edgeIndex = (11 - round(obstacleCandidate[i].y)) * 11 + round(obstacleCandidate[i].x) - 5;
-
-        if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
+        if (obstacleCandidate[i].isCandidate)
         {
-            if (edgeMap[edgeIndex].counter < SOLID_OBS_NUM)
-            {
-                edgeMap[edgeIndex].counter++;
-            }
-            else
-            {
-                edgeMap[edgeIndex].isFound = 1;
-            }
-        }
-    }
+            obsRow = round(obstacleCandidate[i].y);
+            obsCol = round(obstacleCandidate[i].x);
 
-    for (int i=0 ; i<176 ; ++i)
-    {
-        int row = i/11;
-        int col = i%11;
-        int neighborRow;
-        int neighborCol;
-
-        // 230504 YASU if an edge is found, search the other four neighbor edges.
-        // See if they form an obstacle or not.
-        if (edgeMap[i].isFound)
-        {
-            for (int j=-1 ; j<=1 ; j+=2)
+            if ((obsRow >= -5) && (obsRow <= 5) && (obsCol > 0) && (obsRow <= 11))
             {
-                for (int k=-1 ; k<=1 ; k+=2)
+                obsIndex = (11 - obsRow) * 11 + obsCol - 5;
+
+                if (obsMap[obsIndex].counter < SOLID_OBS_NUM)
                 {
-                    neighborRow = row + j;
-                    neighborCol = col + k;
-                    if ((neighborRow >= 0) && (neighborCol >= 0) && (neighborRow <= 10) && (neighborCol <= 10) && (edgeMap[neighborRow*11 + neighborCol].isFound == 1))
-                    {
-                        int minRow = MIN(row,neighborRow);
-                        int minCol = MIN(col,neighborCol);
-
-                        testMap[minRow*11 + minCol] = 'x';
-                        testMap[(minRow + 1)*11 + minCol] = 'x';
-                        testMap[minRow*11 + minCol + 1] = 'x';
-                        testMap[(minRow + 1)*11 + minCol + 1] = 'x';
-                    }
+                    obsMap[obsIndex].counter++;
+                }
+                else
+                {
+                    obsMap[obsIndex].isFound = 1;
+                    map[obsIndex] = 'x';
+                    ReAstar = 1;
                 }
             }
         }
     }
+
+    if (ReAstar)
+    {
+        StartAstar = 1;
+    }
+
+//        if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
+//        {
+//            if (edgeMap[edgeIndex].counter < SOLID_OBS_NUM)
+//            {
+//                edgeMap[edgeIndex].counter++;
+//            }
+//            else
+//            {
+//                edgeMap[edgeIndex].isFound = 1;
+//            }
+//        }
+//    }
+
+//    for (int i=0 ; i<176 ; ++i)
+//    {
+//        int row = i/11;
+//        int col = i%11;
+//        int neighborRow;
+//        int neighborCol;
+//        int minRow;
+//        int minCol;
+//
+//        // 230504 YASU if an edge is found, search the other four neighbor edges.
+//        // See if they form an obstacle or not.
+//        if (edgeMap[i].isFound)
+//        {
+//            for (int j=-1 ; j<=1 ; j+=2)
+//            {
+//                for (int k=-1 ; k<=1 ; k+=2)
+//                {
+//                    neighborRow = row + j;
+//                    neighborCol = col + k;
+//                    if ((neighborRow >= 0) && (neighborCol >= 0) && (neighborRow <= 10) && (neighborCol <= 10) && (edgeMap[neighborRow*11 + neighborCol].isFound == 1))
+//                    {
+//                        minRow = MIN(row,neighborRow);
+//                        minCol = MIN(col,neighborCol);
+//
+//                        testMap[minRow*11 + minCol] = 'x';
+//                        testMap[(minRow + 1)*11 + minCol] = 'x';
+//                        testMap[minRow*11 + minCol + 1] = 'x';
+//                        testMap[(minRow + 1)*11 + minCol + 1] = 'x';
+//                    }
+//                }
+//            }
+//        }
+//    }
 }
 
 void setF28027EPWM1A(float controleffort) {
@@ -865,6 +907,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         if (AstarDelay == 1000) {
             StartAstar = 1;  // First Astar to get first path.
             AstarDelay++;
+            calcLadarXY = 1;
         } else {
             AstarDelay++;
         }
@@ -919,7 +962,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             NextNextLargestAreaThreshold1 = fromCAMvaluesThreshold1[6];
             NextNextLargestColThreshold1 = fromCAMvaluesThreshold1[7];
             NextNextLargestRowThreshold1 = fromCAMvaluesThreshold1[8];
-			numThres1++;
+            numThres1++;
             if ((numThres1 % 5) == 0) {
                 // LED4 is GPIO97
                 GpioDataRegs.GPDTOGGLE.bit.GPIO97 = 1;
@@ -939,8 +982,8 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             NextNextLargestAreaThreshold2 = fromCAMvaluesThreshold2[6];
             NextNextLargestColThreshold2 = fromCAMvaluesThreshold2[7];
             NextNextLargestRowThreshold2 = fromCAMvaluesThreshold2[8];
-			numThres2++;
-			if ((numThres2 % 5) == 0) {
+            numThres2++;
+            if ((numThres2 % 5) == 0) {
                 // LED5 is GPIO111
                 GpioDataRegs.GPDTOGGLE.bit.GPIO111 = 1;
             }
@@ -1332,7 +1375,7 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
 
                 // 230503 YASU get average of ladar's info
                 LADARi = 24 + i*obsDetectAnglePeriod;
-                obstacleCandidate[i].distance = ladar_data[LADARi].distance_pong;
+                obstacleCandidate[i].distance = ladar_data[LADARi].distance_ping;
                 obstacleCandidate[i].x = ladar_pts[LADARi].x;
                 obstacleCandidate[i].y = ladar_pts[LADARi].y;
 
