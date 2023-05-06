@@ -163,6 +163,8 @@ typedef struct obsCandidate{
 obsCandidate obstacleCandidate[NUM_CANDIDATE];
 float obsDetectAnglePeriod = 180.0 / (NUM_CANDIDATE-1);
 
+int calcLadarXY = 0;
+
 // 230502 YASU declared horiEdgeCounter & vertEdgeCounter to determine solid obstacles,
 // If horiEdgeCounter is larger than SOLID_OBS_NUM, we say that there's an horizontal edge on the x position, for y, vice versa.
 #define SOLID_OBS_NUM 20
@@ -1318,27 +1320,30 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         // 230502 YASU sample the LiDAR data to obstacleCandidate NUM_CANDIDATE times
         // If the distance is less than 4 tiles, set x, y to round(ladar_pts.pos), and set isCandidate to 1
         // Else, set them to zero
-        for (int i=0 ; i<NUM_CANDIDATE ; ++i)
+        if (calcLadarXY == 1)
         {
-            // 230503 YASU clear all data
-            obstacleCandidate[i].x = 0;
-            obstacleCandidate[i].y = 0;
-            obstacleCandidate[i].distance = 0.0;
-            obstacleCandidate[i].isCandidate = 0;
-
-            // 230503 YASU get average of ladar's info
-            LADARi = 24 + i*obsDetectAnglePeriod;
-            obstacleCandidate[i].distance = ladar_data[LADARi].distance_ping;
-            obstacleCandidate[i].x = ladar_pts[LADARi].x;
-            obstacleCandidate[i].y = ladar_pts[LADARi].y;
-
-            if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
+            for (int i=0 ; i<NUM_CANDIDATE ; ++i)
             {
-                obstacleCandidate[i].isCandidate = 1;
-            }
-            else
-            {
+                // 230503 YASU clear all data
+                obstacleCandidate[i].x = 0;
+                obstacleCandidate[i].y = 0;
+                obstacleCandidate[i].distance = 0.0;
                 obstacleCandidate[i].isCandidate = 0;
+
+                // 230503 YASU get average of ladar's info
+                LADARi = 24 + i*obsDetectAnglePeriod;
+                obstacleCandidate[i].distance = ladar_data[LADARi].distance_pong;
+                obstacleCandidate[i].x = ladar_pts[LADARi].x;
+                obstacleCandidate[i].y = ladar_pts[LADARi].y;
+
+                if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
+                {
+                    obstacleCandidate[i].isCandidate = 1;
+                }
+                else
+                {
+                    obstacleCandidate[i].isCandidate = 0;
+                }
             }
         }
 
@@ -1367,27 +1372,30 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         // 230502 YASU sample the LiDAR data to obstacleCandidate NUM_CANDIDATE times
         // If the distance is less than 4 tiles, set x, y to round(ladar_pts.pos), and set isCandidate to 1
         // Else, set them to zero
-        for (int i=0 ; i<NUM_CANDIDATE ; ++i)
+        if (calcLadarXY == 1)
         {
-            // 230503 YASU clear all data
-            obstacleCandidate[i].x = 0;
-            obstacleCandidate[i].y = 0;
-            obstacleCandidate[i].distance = 0.0;
-            obstacleCandidate[i].isCandidate = 0;
-
-            // 230503 YASU get average of ladar's info
-            LADARi = 24 + i*obsDetectAnglePeriod;
-            obstacleCandidate[i].distance = ladar_data[LADARi].distance_pong;
-            obstacleCandidate[i].x = ladar_pts[LADARi].x;
-            obstacleCandidate[i].y = ladar_pts[LADARi].y;
-
-            if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
+            for (int i=0 ; i<NUM_CANDIDATE ; ++i)
             {
-                obstacleCandidate[i].isCandidate = 1;
-            }
-            else
-            {
+                // 230503 YASU clear all data
+                obstacleCandidate[i].x = 0;
+                obstacleCandidate[i].y = 0;
+                obstacleCandidate[i].distance = 0.0;
                 obstacleCandidate[i].isCandidate = 0;
+
+                // 230503 YASU get average of ladar's info
+                LADARi = 24 + i*obsDetectAnglePeriod;
+                obstacleCandidate[i].distance = ladar_data[LADARi].distance_pong;
+                obstacleCandidate[i].x = ladar_pts[LADARi].x;
+                obstacleCandidate[i].y = ladar_pts[LADARi].y;
+
+                if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
+                {
+                    obstacleCandidate[i].isCandidate = 1;
+                }
+                else
+                {
+                    obstacleCandidate[i].isCandidate = 0;
+                }
             }
         }
     }
