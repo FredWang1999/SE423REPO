@@ -151,13 +151,13 @@ edge edgeMap[176];
 
 // 230502 YASU declared obstacleCandidate to store LiDAR distances less than 4
 typedef struct obsCandidate{
-    int x; //4
-    int y;
+    float x; //4
+    float y;
     float distance;
     _Bool isCandidate;
 } obsCandidate;
 
-#define NUM_CANDIDATE 9
+#define NUM_CANDIDATE 5
 #define CANDIDATE_DIST 5
 // 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
 obsCandidate obstacleCandidate[NUM_CANDIDATE];
@@ -717,7 +717,7 @@ __interrupt void cpu_timer2_isr(void)
 
     for (int i=0 ; i<NUM_CANDIDATE ; ++i)
     {
-        edgeIndex = (11-obstacleCandidate[i].y) * 11 + obstacleCandidate[i].x - 5;
+        edgeIndex = (11 - round(obstacleCandidate[i].y)) * 11 + round(obstacleCandidate[i].x) - 5;
 
         if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
         {
@@ -921,7 +921,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             if ((numThres1 % 5) == 0) {
                 // LED4 is GPIO97
                 GpioDataRegs.GPDTOGGLE.bit.GPIO97 = 1;
-            }			
+            }
         }
 
         if (NewCAMDataThreshold2 == 1) {
@@ -941,7 +941,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 			if ((numThres2 % 5) == 0) {
                 // LED5 is GPIO111
                 GpioDataRegs.GPDTOGGLE.bit.GPIO111 = 1;
-            }			
+            }
         }
 
         if (NewLVData == 1) {
@@ -1238,7 +1238,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 SendAStarRawData[i+14]=SendAStarInfo.cur_obs.mapCondensed[i];
             }
             serial_sendSCID(&SerialD, SendAStarRawData, 36);
-	
+
         }
 
     }
@@ -1327,24 +1327,18 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             obstacleCandidate[i].isCandidate = 0;
 
             // 230503 YASU get average of ladar's info
-            for (LADARi = (int) 26 + i*obsDetectAnglePeriod; LADARi <= (int) 30 + i*obsDetectAnglePeriod ; LADARi++) {
-                obstacleCandidate[i].distance += ladar_data[LADARi].distance_ping;
-                obstacleCandidate[i].x += ladar_pts[LADARi].x;
-                obstacleCandidate[i].y += ladar_pts[LADARi].y;
-            }
-            obstacleCandidate[i].distance /= 5.0;
+            LADARi = 24 + i*obsDetectAnglePeriod;
+            obstacleCandidate[i].distance = ladar_data[LADARi].distance_ping;
+            obstacleCandidate[i].x = ladar_pts[LADARi].x;
+            obstacleCandidate[i].y = ladar_pts[LADARi].y;
 
             if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
             {
                 obstacleCandidate[i].isCandidate = 1;
-                obstacleCandidate[i].x /= 5.0;
-                obstacleCandidate[i].y /= 5.0;
             }
             else
             {
                 obstacleCandidate[i].isCandidate = 0;
-                obstacleCandidate[i].x = 0.0;
-                obstacleCandidate[i].y = 0.0;
             }
         }
 
@@ -1382,24 +1376,18 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             obstacleCandidate[i].isCandidate = 0;
 
             // 230503 YASU get average of ladar's info
-            for (LADARi = (int) 26 + i*obsDetectAnglePeriod; LADARi <= (int) 30 + i*obsDetectAnglePeriod ; LADARi++) {
-                obstacleCandidate[i].distance += ladar_data[LADARi].distance_ping;
-                obstacleCandidate[i].x += ladar_pts[LADARi].x;
-                obstacleCandidate[i].y += ladar_pts[LADARi].y;
-            }
-            obstacleCandidate[i].distance /= 5.0;
+            LADARi = 24 + i*obsDetectAnglePeriod;
+            obstacleCandidate[i].distance = ladar_data[LADARi].distance_pong;
+            obstacleCandidate[i].x = ladar_pts[LADARi].x;
+            obstacleCandidate[i].y = ladar_pts[LADARi].y;
 
             if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
             {
                 obstacleCandidate[i].isCandidate = 1;
-                obstacleCandidate[i].x /= 5.0;
-                obstacleCandidate[i].y /= 5.0;
             }
             else
             {
                 obstacleCandidate[i].isCandidate = 0;
-                obstacleCandidate[i].x = 0.0;
-                obstacleCandidate[i].y = 0.0;
             }
         }
     }
