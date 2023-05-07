@@ -165,8 +165,8 @@ typedef struct obsCandidate{
     _Bool isCandidate;
 } obsCandidate;
 
-#define NUM_CANDIDATE 9
-#define CANDIDATE_DIST 10
+#define NUM_CANDIDATE 5
+#define CANDIDATE_DIST 3
 // 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
 obsCandidate obstacleCandidate[NUM_CANDIDATE];
 float obsDetectAnglePeriod = 180.0 / (NUM_CANDIDATE-1);
@@ -729,21 +729,25 @@ __interrupt void cpu_timer2_isr(void)
 
     int obsRow;
     int obsCol;
+    int mapRow;
+    int mapCol;
 
     ReAstar = 0;
     for (int i=0 ; i<NUM_CANDIDATE ; ++i)
     {
-        if (obstacleCandidate[i].isCandidate)
+        if (obstacleCandidate[i].isCandidate && fabs(turn) < 0.3)
         {
             obsRow = round(obstacleCandidate[i].y);
             obsCol = round(obstacleCandidate[i].x);
-
+            obsIndex = (11 - obsRow) * 11 + obsCol + 5;
+            mapRow = (11 - obsRow);
+            mapCol= obsCol + 5;
             if (obsMap[obsIndex].isFound != 1)
             {
-                if ((obsCol >= -5) && (obsCol <= 5) && (obsRow >= 0) && (obsRow <= 11))
+                if ((obsCol >= -5) && (obsCol <= 5) && (obsRow >= 0) && (obsRow < 11))
                 {
-                    obsIndex = (11 - obsRow) * 11 + obsCol - 5;
-
+//                    obsIndex = (11 - obsRow) * 11 + obsCol - 5;
+                    if (!(( (mapRow%2) == 0) && ( (mapCol%2) == 0)) )
                     if (obsMap[obsIndex].counter < SOLID_OBS_NUM)
                     {
                         obsMap[obsIndex].counter++;
