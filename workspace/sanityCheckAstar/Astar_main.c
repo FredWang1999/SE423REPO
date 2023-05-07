@@ -24,8 +24,6 @@
 #include "SE423Lib.h"
 #include "OptiTrack.h"
 
-
-
 #define PI          3.1415926535897932384626433832795
 #define TWOPI       6.283185307179586476925286766559
 #define HALFPI      1.5707963267948966192313216916398
@@ -82,10 +80,6 @@ uint32_t AstarendEqualsStart = 0;
 uint32_t AstaroutsideMap = 0;
 uint32_t AstarstartstopObstacle = 0;
 uint32_t AstarResetMap = 0;
-
-int obsIndex = 0;
-_Bool ReAstar = 0;
-
 // For A* Default map with no obstacles just door opening
 char map[176] =      //16x11
 {   '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
@@ -123,65 +117,12 @@ char mapstart[176] =      //16x11
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
 
-char testMap[176] =      //16x11
-{   '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    'x', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', 'x',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
-    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
 
-// 230502 YASU declared edgeMap for obstacles, it has the same dimension to the map.
-//typedef struct edge{
-//    _Bool isEdge;
-//    _Bool isFound;
-//    int counter;
-//}edge;
-//
-//edge edgeMap[176];
 
-typedef struct obs{
-    _Bool isFound;
-    int counter;
-}obs;
 
-obs obsMap[176];
 
-// 230502 YASU declared obstacleCandidate to store LiDAR distances less than 4
-typedef struct obsCandidate{
-    float x; //4
-    float y;
-    float distance;
-    _Bool isCandidate;
-} obsCandidate;
 
-#define NUM_CANDIDATE 9
-#define CANDIDATE_DIST 10
-// 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
-obsCandidate obstacleCandidate[NUM_CANDIDATE];
-float obsDetectAnglePeriod = 180.0 / (NUM_CANDIDATE-1);
 
-int calcLadarXY = 0;
-
-// 230502 YASU declared horiEdgeCounter & vertEdgeCounter to determine solid obstacles,
-// If horiEdgeCounter is larger than SOLID_OBS_NUM, we say that there's an horizontal edge on the x position, for y, vice versa.
-#define SOLID_OBS_NUM 8
-float horiEdgeCounter = 0;
-float vertEdgeCounter = 0;
-float sumHoriEdgeX = 0;
-float sumVertEdgeY = 0;
-int prevEdgeX = 0;
-int prevEdgeY = 0;
 
 uint32_t numTimer0calls = 0;
 uint16_t UARTPrint = 0;
@@ -248,11 +189,9 @@ int16_t RobotState = 1;
 int16_t checkfronttally = 0;
 int32_t WallFollowtime = 0;
 
-#define NUMWAYPOINTS 7
+#define NUMWAYPOINTS 8
 uint16_t statePos = 0;
-pose robotdest[40];  // array of waypoints for the robot
-pose waypoints[NUMWAYPOINTS];  // array of waypoints for the robot
-int16_t wayindex = 0;
+pose robotdest[NUMWAYPOINTS];  // array of waypoints for the robot
 uint16_t i = 0;//for loop
 
 uint16_t right_wall_follow_state = 2;  // right follow
@@ -442,7 +381,7 @@ void main(void)
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);  // Currently not used for any purpose
     ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 100000); // !!!!! Important, Used to command LADAR every 100ms.  Do not Change.
-    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 10000); // Currently not used for any purpose
+    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 40000); // Currently not used for any purpose
 
     // Enable CpuTimer Interrupt bit TIE
     CpuTimer0Regs.TCR.all = 0x4000;
@@ -499,17 +438,17 @@ void main(void)
     PieCtrlRegs.PIEIER12.bit.INTx11 = 1; //SWI3  Lowest priority
 
 
-    waypoints[0].x = -5;    waypoints[0].y = -3;
-    waypoints[1].x = 3;    waypoints[1].y = 7;
+    robotdest[0].x = -4;    robotdest[0].y = 10;
+    robotdest[1].x = -4;    robotdest[1].y = 2;
     //middle of bottom
-    waypoints[2].x = -3;     waypoints[2].y = 7;
+    robotdest[2].x = 0;     robotdest[2].y = 2;
     //outside the course
-    waypoints[3].x = 5;     waypoints[3].y = -3;
+    robotdest[3].x = 0;     robotdest[3].y = -3;
     //back to middle
-    waypoints[4].x = 0;     waypoints[4].y = 11;
-    waypoints[5].x = -2;     waypoints[5].y = -4;
-    waypoints[6].x = 2;     waypoints[6].y = -4;
-//    waypoints[7].x = 0;     waypoints[7].y = 9;
+    robotdest[4].x = 0;     robotdest[4].y = 2;
+    robotdest[5].x = 4;     robotdest[5].y = 2;
+    robotdest[6].x = 4;     robotdest[6].y = 10;
+    robotdest[7].x = 0;     robotdest[7].y = 9;
 
     // ROBOTps will be updated by Optitrack during gyro calibration
     // TODO: specify the starting position of the robot
@@ -554,63 +493,40 @@ void main(void)
     // LED5 is GPIO111
     GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
 
-    // 230502 YASU initialize edgeMap
-//    for (int i=11 ; i<121 ; ++i)
-//    {
-//        int row = i/11;
-//        int col = i%11;
-//
-//        if (((row % 2) == 1) && ((col % 2) == 0))
-//        {
-//            edgeMap[row*11 + col].isEdge = 1;
-//        }
-//
-//        if (((row % 2) == 0) && ((col % 2) == 1))
-//        {
-//            edgeMap[row*11 + col].isEdge = 1;
-//        }
-//    }
-
-
 
     // IDLE loop. Just sit and loop forever (optional):
     while(1)
     {
         if (UARTPrint == 1 ) {
 
-//            if (readbuttons() == 0) {
-//                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
-//                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
-//            } else if (readbuttons() == 1) {
-//                UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
-//                UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
-//              //UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
-//                //UART_printfLine(2,"Ln1:%.3f Ln2:%.3f",printLinux1,printLinux2);
-//            } else if (readbuttons() == 2) {
-//                UART_printfLine(1,"O2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold1,NextLargestColThreshold1,NextLargestRowThreshold1);
-//                UART_printfLine(2,"P2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold2,NextLargestColThreshold2,NextLargestRowThreshold2);
-//                // UART_printfLine(1,"%.2f %.2f",adcC2Volt,adcC3Volt);
-//                // UART_printfLine(2,"%.2f %.2f",adcC4Volt,adcC5Volt);
-//            } else if (readbuttons() == 4) {
-//                UART_printfLine(1,"O3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold1,NextNextLargestColThreshold1,NextNextLargestRowThreshold1);
-//                UART_printfLine(2,"P3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold2,NextNextLargestColThreshold2,NextNextLargestRowThreshold2);
-//                // UART_printfLine(1,"L:%.3f R:%.3f",LeftVel,RightVel);
-//                // UART_printfLine(2,"uL:%.2f uR:%.2f",uLeft,uRight);
-//            } else if (readbuttons() == 8) {
-//                UART_printfLine(1,"020x%.2f y%.2f",ladar_pts[20].x,ladar_pts[20].y);
-//                UART_printfLine(2,"150x%.2f y%.2f",ladar_pts[150].x,ladar_pts[150].y);
-//            } else if (readbuttons() == 3) {
-//                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
-//                UART_printfLine(2,"MPU:%.2f LPR:%.2f",gyro9250_radians,gyroLPR510_radians);
-//            } else if (readbuttons() == 5) {
-//                UART_printfLine(1,"Ox:%.2f:Oy:%.2f:Oa%.2f",OPTITRACKps.x,OPTITRACKps.y,OPTITRACKps.theta);
-//                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
-//            }
-
-//            UART_printfLine(1, "Edge: %.2f", edgeIndex);
-//            if ( edgeMap[edgeIndex].isFound == 1) {
-//                UART_printfLine(1, "Edge: %.2f", edgeIndex);
-//            }
+            if (readbuttons() == 0) {
+                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
+                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
+            } else if (readbuttons() == 1) {
+                UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
+                UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
+				//UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
+                //UART_printfLine(2,"Ln1:%.3f Ln2:%.3f",printLinux1,printLinux2);
+            } else if (readbuttons() == 2) {
+                UART_printfLine(1,"O2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold1,NextLargestColThreshold1,NextLargestRowThreshold1);
+                UART_printfLine(2,"P2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold2,NextLargestColThreshold2,NextLargestRowThreshold2);
+                // UART_printfLine(1,"%.2f %.2f",adcC2Volt,adcC3Volt);
+                // UART_printfLine(2,"%.2f %.2f",adcC4Volt,adcC5Volt);
+            } else if (readbuttons() == 4) {
+                UART_printfLine(1,"O3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold1,NextNextLargestColThreshold1,NextNextLargestRowThreshold1);
+                UART_printfLine(2,"P3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold2,NextNextLargestColThreshold2,NextNextLargestRowThreshold2);
+                // UART_printfLine(1,"L:%.3f R:%.3f",LeftVel,RightVel);
+                // UART_printfLine(2,"uL:%.2f uR:%.2f",uLeft,uRight);
+            } else if (readbuttons() == 8) {
+                UART_printfLine(1,"020x%.2f y%.2f",ladar_pts[20].x,ladar_pts[20].y);
+                UART_printfLine(2,"150x%.2f y%.2f",ladar_pts[150].x,ladar_pts[150].y);
+            } else if (readbuttons() == 3) {
+                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
+                UART_printfLine(2,"MPU:%.2f LPR:%.2f",gyro9250_radians,gyroLPR510_radians);
+            } else if (readbuttons() == 5) {
+                UART_printfLine(1,"Ox:%.2f:Oy:%.2f:Oa%.2f",OPTITRACKps.x,OPTITRACKps.y,OPTITRACKps.theta);
+                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
+            }
 
             UARTPrint = 0;
         }
@@ -723,97 +639,12 @@ __interrupt void cpu_timer2_isr(void)
 
     CpuTimer2.InterruptCount++;
 
-      if ((CpuTimer2.InterruptCount % 10) == 0) {
-//          UARTPrint = 1;
-      }
-
-    int obsRow;
-    int obsCol;
-
-    ReAstar = 0;
-    for (int i=0 ; i<NUM_CANDIDATE ; ++i)
-    {
-        if (obstacleCandidate[i].isCandidate)
-        {
-            obsRow = round(obstacleCandidate[i].y);
-            obsCol = round(obstacleCandidate[i].x);
-
-            if (obsMap[obsIndex].isFound != 1)
-            {
-                if ((obsCol >= -5) && (obsCol <= 5) && (obsRow >= 0) && (obsRow <= 11))
-                {
-                    obsIndex = (11 - obsRow) * 11 + obsCol - 5;
-
-                    if (obsMap[obsIndex].counter < SOLID_OBS_NUM)
-                    {
-                        obsMap[obsIndex].counter++;
-                    }
-                    else
-                    {
-                        obsMap[obsIndex].isFound = 1;
-                        map[obsIndex] = 'x';
-                        ReAstar = 1;
-                    }
-                }
-            }
-
-        }
-    }
-
-    if (ReAstar)
-    {
-        StartAstar = 1;
-    }
-
-//        if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
-//        {
-//            if (edgeMap[edgeIndex].counter < SOLID_OBS_NUM)
-//            {
-//                edgeMap[edgeIndex].counter++;
-//            }
-//            else
-//            {
-//                edgeMap[edgeIndex].isFound = 1;
-//            }
-//        }
-//    }
-
-//    for (int i=0 ; i<176 ; ++i)
-//    {
-//        int row = i/11;
-//        int col = i%11;
-//        int neighborRow;
-//        int neighborCol;
-//        int minRow;
-//        int minCol;
-//
-//        // 230504 YASU if an edge is found, search the other four neighbor edges.
-//        // See if they form an obstacle or not.
-//        if (edgeMap[i].isFound)
-//        {
-//            for (int j=-1 ; j<=1 ; j+=2)
-//            {
-//                for (int k=-1 ; k<=1 ; k+=2)
-//                {
-//                    neighborRow = row + j;
-//                    neighborCol = col + k;
-//                    if ((neighborRow >= 0) && (neighborCol >= 0) && (neighborRow <= 10) && (neighborCol <= 10) && (edgeMap[neighborRow*11 + neighborCol].isFound == 1))
-//                    {
-//                        minRow = MIN(row,neighborRow);
-//                        minCol = MIN(col,neighborCol);
-//
-//                        testMap[minRow*11 + minCol] = 'x';
-//                        testMap[(minRow + 1)*11 + minCol] = 'x';
-//                        testMap[minRow*11 + minCol + 1] = 'x';
-//                        testMap[(minRow + 1)*11 + minCol + 1] = 'x';
-//                    }
-//                }
-//            }
-//        }
-//    }
+    //  if ((CpuTimer2.InterruptCount % 10) == 0) {
+    //      UARTPrint = 1;
+    //  }
 }
 
-void setF28027EPWM1A(float controleffort) {
+void setF28027EPWM1A(float controleffort){
     if (controleffort < -10) {
         controleffort = -10;
     }
@@ -911,7 +742,6 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         if (AstarDelay == 1000) {
             StartAstar = 1;  // First Astar to get first path.
             AstarDelay++;
-            calcLadarXY = 1;
         } else {
             AstarDelay++;
         }
@@ -966,11 +796,11 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             NextNextLargestAreaThreshold1 = fromCAMvaluesThreshold1[6];
             NextNextLargestColThreshold1 = fromCAMvaluesThreshold1[7];
             NextNextLargestRowThreshold1 = fromCAMvaluesThreshold1[8];
-            numThres1++;
+			numThres1++;
             if ((numThres1 % 5) == 0) {
                 // LED4 is GPIO97
                 GpioDataRegs.GPDTOGGLE.bit.GPIO97 = 1;
-            }
+            }			
         }
 
         if (NewCAMDataThreshold2 == 1) {
@@ -986,11 +816,11 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             NextNextLargestAreaThreshold2 = fromCAMvaluesThreshold2[6];
             NextNextLargestColThreshold2 = fromCAMvaluesThreshold2[7];
             NextNextLargestRowThreshold2 = fromCAMvaluesThreshold2[8];
-            numThres2++;
-            if ((numThres2 % 5) == 0) {
+			numThres2++;
+			if ((numThres2 % 5) == 0) {
                 // LED5 is GPIO111
                 GpioDataRegs.GPDTOGGLE.bit.GPIO111 = 1;
-            }
+            }			
         }
 
         if (NewLVData == 1) {
@@ -1031,13 +861,8 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                     pathRow[path_index] = (int16_t)path_received[path_index*2];
                     pathCol[path_index] = (int16_t)path_received[path_index*2+1];
                 }
-                for (int i=0 ; i<numpts ; i++)
-                {
-                    robotdest[i].x = pathCol[numpts-1-i] - 5;
-                    robotdest[i].y = 11 - pathRow[numpts-1-i];
-//                    statePos = 1;
-                }
-                statePos = 1;
+
+
             } else {
                 if ((path_received[80]&0x2)==0x2) {
                     AstarendEqualsStart++;
@@ -1115,23 +940,9 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         // Make sure this function is called every time in this function even if you decide not to use its vref and turn
         // uses xy code to step through an array of positions
         if( xy_control(&vref, &turn, 1.0, ROBOTps.x, ROBOTps.y, robotdest[statePos].x, robotdest[statePos].y, ROBOTps.theta, 0.25, 0.5)) {
-//            statePos = (statePos+1)%NUMWAYPOINTS;
-            if (wayindex != (NUMWAYPOINTS-1))
-            if (AstarRunning == 0)
-            {
-                if (statePos == numpts - 1)
-                {
-                    wayindex++;
-                    StartAstar = 1;
-                }
-                else
-                {
-                    statePos++;
-                }
-            }
+            statePos = (statePos+1)%NUMWAYPOINTS;
         }
         // state machine
-        RobotState = 1;
         switch (RobotState) {
         case 1:
 
@@ -1228,8 +1039,8 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             SendAStarInfo.cur_obs.y = ROBOTps.y;
 
             // Right now fixed to one point in the course get ride of temp_y and temp_x
-            int16_t temp_y = waypoints[wayindex].y;
-            int16_t temp_x = waypoints[wayindex].x;
+            int16_t temp_y = 8;
+            int16_t temp_x = 3;
             SendAStarInfo.cur_obs.destrow = 11 - temp_y;
             SendAStarInfo.cur_obs.destcol = temp_x + 5;
 
@@ -1287,7 +1098,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 SendAStarRawData[i+14]=SendAStarInfo.cur_obs.mapCondensed[i];
             }
             serial_sendSCID(&SerialD, SendAStarRawData, 36);
-
+	
         }
 
     }
@@ -1338,10 +1149,6 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
     // Insert SWI ISR Code here.......
     // LED1
     GpioDataRegs.GPATOGGLE.bit.GPIO22 = 1;
-
-    // 230503 YASU convert the obstacle's position from robot coordinate to Astar coordinate (turn 90 degrees clockwise)
-    // (x_new, y_new) = (-y, x)
-
     if (LADARpingpong == 1) {
         // LADARrightfront is the min of dist 52, 53, 54, 55, 56
         LADARrightfront = 19; // 19 is greater than max feet
@@ -1360,40 +1167,11 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
         LADARyoffset = ROBOTps.y + (LADARps.x*sinf(ROBOTps.theta)-LADARps.y*cosf(ROBOTps.theta - PI/2.0));
         for (LADARi = 0; LADARi < 228; LADARi++) {
+
             ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_ping*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
             ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_ping*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
+
         }
-
-        // 230502 YASU sample the LiDAR data to obstacleCandidate NUM_CANDIDATE times
-        // If the distance is less than 4 tiles, set x, y to round(ladar_pts.pos), and set isCandidate to 1
-        // Else, set them to zero
-        if (calcLadarXY == 1)
-        {
-            for (int i=0 ; i<NUM_CANDIDATE ; ++i)
-            {
-                // 230503 YASU clear all data
-                obstacleCandidate[i].x = 0;
-                obstacleCandidate[i].y = 0;
-                obstacleCandidate[i].distance = 0.0;
-                obstacleCandidate[i].isCandidate = 0;
-
-                // 230503 YASU get average of ladar's info
-                LADARi = 24 + i*obsDetectAnglePeriod;
-                obstacleCandidate[i].distance = ladar_data[LADARi].distance_ping;
-                obstacleCandidate[i].x = ladar_pts[LADARi].x;
-                obstacleCandidate[i].y = ladar_pts[LADARi].y;
-
-                if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
-                {
-                    obstacleCandidate[i].isCandidate = 1;
-                }
-                else
-                {
-                    obstacleCandidate[i].isCandidate = 0;
-                }
-            }
-        }
-
     } else if (LADARpingpong == 0) {
         // LADARrightfront is the min of dist 52, 53, 54, 55, 56
         LADARrightfront = 19; // 19 is greater than max feet
@@ -1412,38 +1190,10 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
         LADARyoffset = ROBOTps.y + (LADARps.x*sinf(ROBOTps.theta)-LADARps.y*cosf(ROBOTps.theta - PI/2.0));
         for (LADARi = 0; LADARi < 228; LADARi++) {
+
             ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_pong*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
             ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_pong*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
-        }
 
-        // 230502 YASU sample the LiDAR data to obstacleCandidate NUM_CANDIDATE times
-        // If the distance is less than 4 tiles, set x, y to round(ladar_pts.pos), and set isCandidate to 1
-        // Else, set them to zero
-        if (calcLadarXY == 1)
-        {
-            for (int i=0 ; i<NUM_CANDIDATE ; ++i)
-            {
-                // 230503 YASU clear all data
-                obstacleCandidate[i].x = 0;
-                obstacleCandidate[i].y = 0;
-                obstacleCandidate[i].distance = 0.0;
-                obstacleCandidate[i].isCandidate = 0;
-
-                // 230503 YASU get average of ladar's info
-                LADARi = 24 + i*obsDetectAnglePeriod;
-                obstacleCandidate[i].distance = ladar_data[LADARi].distance_pong;
-                obstacleCandidate[i].x = ladar_pts[LADARi].x;
-                obstacleCandidate[i].y = ladar_pts[LADARi].y;
-
-                if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
-                {
-                    obstacleCandidate[i].isCandidate = 1;
-                }
-                else
-                {
-                    obstacleCandidate[i].isCandidate = 0;
-                }
-            }
         }
     }
 
