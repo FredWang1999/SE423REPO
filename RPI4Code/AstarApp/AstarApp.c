@@ -221,13 +221,27 @@ int getNeighbors(int rowCurr, int colCurr)
 {
 	node_t nodeToAdd;
 	int numNeighbors = 0;
-	if(canTravel(rowCurr-1, colCurr) == 1)	//can travel up
+	if(canTravel(rowCurr-1, colCurr) == 1)  //can travel up
+        {
+                nodeToAdd.row = rowCurr-1;
+                nodeToAdd.col = colCurr;
+                neighbors[numNeighbors] = nodeToAdd;
+                numNeighbors++;
+        }
+	if((canTravel(rowCurr-1, colCurr-1) == 1) && (canTravel(rowCurr-1, colCurr) == 1) && (canTravel(rowCurr, colCurr-1) == 1))	//can travel up left
 	{
 		nodeToAdd.row = rowCurr-1;
-		nodeToAdd.col = colCurr;
+		nodeToAdd.col = colCurr-1;
 		neighbors[numNeighbors] = nodeToAdd;
 		numNeighbors++;
 	}
+	if((canTravel(rowCurr-1, colCurr+1) == 1) && (canTravel(rowCurr-1, colCurr) == 1) && (canTravel(rowCurr, colCurr+1) == 1))        //can travel up right
+        {
+                nodeToAdd.row = rowCurr-1;
+                nodeToAdd.col = colCurr+1;
+                neighbors[numNeighbors] = nodeToAdd;
+                numNeighbors++;
+        }
 	if(canTravel(rowCurr, colCurr-1) == 1)	//can travel left
 	{
 		nodeToAdd.row = rowCurr;
@@ -249,6 +263,20 @@ int getNeighbors(int rowCurr, int colCurr)
 		neighbors[numNeighbors] = nodeToAdd;
 		numNeighbors++;
 	}
+	if((canTravel(rowCurr+1, colCurr-1) == 1) && (canTravel(rowCurr, colCurr-1) == 1) && (canTravel(rowCurr+1, colCurr) == 1))  //can travel down left
+        {
+                nodeToAdd.row = rowCurr+1;
+                nodeToAdd.col = colCurr-1;
+                neighbors[numNeighbors] = nodeToAdd;
+                numNeighbors++;
+        }
+	if((canTravel(rowCurr+1, colCurr+1) == 1) && (canTravel(rowCurr, colCurr+1) == 1) && (canTravel(rowCurr+1, colCurr) == 1))  //can travel down right
+        {
+                nodeToAdd.row = rowCurr+1;
+                nodeToAdd.col = colCurr+1;
+                neighbors[numNeighbors] = nodeToAdd;
+                numNeighbors++;
+        }
 	return numNeighbors;
 }
  
@@ -379,7 +407,10 @@ int astar(int rowStart, int colStart, int rowEnd, int colEnd)
 			/*neighbor.distTravelFromStart (g) = q.distTravelFromStart + distance between neighbor and q which is always 1 when search just top left bottom right*/
 			// 6.  Set this neighbor's distance traveled from the start.  Remember you have the variable "currDist" that is the distance of q to Start
 			//need to consider diagonal distance now
-			next.distTravelFromStart = currDist+1;
+			if (sqrt((next.row - minDistNode.row)*(next.row - minDistNode.row) + (next.col - minDistNode.col)*(next.col - minDistNode.col)) > 1)
+				next.distTravelFromStart = currDist + sqrt(2);
+			else
+				next.distTravelFromStart = currDist+1;
 			// printf("next.distTravelFromStart %f\n", next.distTravelFromStart);
 			
 			/*neighbor.distToGoal (h) = distance from goal to neighbor, heuristic function	(estimated distance to goal)*/

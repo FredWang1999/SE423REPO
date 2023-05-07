@@ -165,8 +165,8 @@ typedef struct obsCandidate{
     _Bool isCandidate;
 } obsCandidate;
 
-#define NUM_CANDIDATE 5
-#define CANDIDATE_DIST 3
+#define NUM_CANDIDATE 61
+#define CANDIDATE_DIST 4
 // 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
 obsCandidate obstacleCandidate[NUM_CANDIDATE];
 float obsDetectAnglePeriod = 180.0 / (NUM_CANDIDATE-1);
@@ -442,7 +442,7 @@ void main(void)
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);  // Currently not used for any purpose
     ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 100000); // !!!!! Important, Used to command LADAR every 100ms.  Do not Change.
-    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 10000); // Currently not used for any purpose
+    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 200000); // Currently not used for any purpose
 
     // Enable CpuTimer Interrupt bit TIE
     CpuTimer0Regs.TCR.all = 0x4000;
@@ -735,7 +735,7 @@ __interrupt void cpu_timer2_isr(void)
     ReAstar = 0;
     for (int i=0 ; i<NUM_CANDIDATE ; ++i)
     {
-        if (obstacleCandidate[i].isCandidate && fabs(turn) < 0.3)
+        if (obstacleCandidate[i].isCandidate && fabs(turn) < 0.5)
         {
             obsRow = round(obstacleCandidate[i].y);
             obsCol = round(obstacleCandidate[i].x);
@@ -1118,7 +1118,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
         // Make sure this function is called every time in this function even if you decide not to use its vref and turn
         // uses xy code to step through an array of positions
-        if( xy_control(&vref, &turn, 1.0, ROBOTps.x, ROBOTps.y, robotdest[statePos].x, robotdest[statePos].y, ROBOTps.theta, 0.25, 0.5)) {
+        if( xy_control(&vref, &turn, 1.0, ROBOTps.x, ROBOTps.y, robotdest[statePos].x, robotdest[statePos].y, ROBOTps.theta, 0.25, 0.90)) {
 //            statePos = (statePos+1)%NUMWAYPOINTS;
             if (wayindex != (NUMWAYPOINTS-1))
             if (AstarRunning == 0)
