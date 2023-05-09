@@ -141,14 +141,26 @@ char testMap[176] =      //16x11
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
     '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
 
-// 230502 YASU declared edgeMap for obstacles, it has the same dimension to the map.
-//typedef struct edge{
-//    _Bool isEdge;
-//    _Bool isFound;
-//    int counter;
-//}edge;
-//
-//edge edgeMap[176];
+// 230509 YASU declared obsQueue
+int obsQueue[121][2];
+int queueRear = -1;
+int queueFront = -1;
+
+void insertObsQueue(int x, int y)
+{
+    // If queue is initially empty
+    if (queueFront == - 1)
+        queueFront = 0;
+
+    queueRear++;
+    obsQueue[queueRear][0] = x;
+    obsQueue[queueRear][1] = y;
+}
+
+void deleteObsQueue()
+{
+    queueFront++;
+}
 
 typedef struct obs{
     _Bool isFound;
@@ -167,6 +179,7 @@ typedef struct obsCandidate{
 
 #define NUM_CANDIDATE 61
 #define CANDIDATE_DIST 4
+
 // 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
 obsCandidate obstacleCandidate[NUM_CANDIDATE];
 float obsDetectAnglePeriod = 180.0 / (NUM_CANDIDATE-1);
@@ -256,7 +269,7 @@ int16_t RobotState = 1;
 int16_t checkfronttally = 0;
 int32_t WallFollowtime = 0;
 
-#define NUMWAYPOINTS 7
+#define NUMWAYPOINTS 8
 uint16_t statePos = 0;
 pose robotdest[40];  // array of waypoints for the robot
 pose waypoints[NUMWAYPOINTS];  // array of waypoints for the robot
@@ -537,6 +550,7 @@ void main(void)
     waypoints[4].x = 0;     waypoints[4].y = 11;
     waypoints[5].x = -2;     waypoints[5].y = -4;
     waypoints[6].x = 2;     waypoints[6].y = -4;
+    waypoints[7].x = 0;     waypoints[7].y = -4;
 //    waypoints[7].x = 0;     waypoints[7].y = 9;
 
     // ROBOTps will be updated by Optitrack during gyro calibration
@@ -636,7 +650,9 @@ void main(void)
 //                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
 //            }
 
-//            UART_printfLine(1, "Edge: %.2f", edgeIndex);
+            UART_printfLine(1, "State: %d,waypoint: %d", RobotState,wayindex);
+            UART_printfLine(2, "turn: %f", turn);
+
 //            if ( edgeMap[edgeIndex].isFound == 1) {
 //                UART_printfLine(1, "Edge: %.2f", edgeIndex);
 //            }
@@ -1061,22 +1077,38 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
         // Make sure this function is called every time in this function even if you decide not to use its vref and turn
         // uses xy code to step through an array of positions
-        if( xy_control(&vref, &turn, 1.0, ROBOTps.x, ROBOTps.y, robotdest[statePos].x, robotdest[statePos].y, ROBOTps.theta, 0.25, 0.90)) {
+        if( xy_control(&vref, &turn, 1.0, ROBOTps.x, ROBOTps.y, robotdest[statePos].x, robotdest[statePos].y, ROBOTps.theta, 0.25, 0.50)) {
 //            statePos = (statePos+1)%NUMWAYPOINTS;
-            if (wayindex != (NUMWAYPOINTS-1))
-            if (AstarRunning == 0)
+            if (wayindex != (NUMWAYPOINTS))
             {
-                if (statePos == numpts - 1)
+                if (AstarRunning == 0)
                 {
-                    wayindex++;
-                    StartAstar = 1;
-                }
-                else
-                {
-                    statePos++;
+                    if (statePos == numpts - 1)
+                    {
+                        if (wayindex == NUMWAYPOINTS-3)
+                        {
+                            StateTimeCounter = 0;
+                            RobotState = 40;
+                        }
+                        if (wayindex == NUMWAYPOINTS-2)
+                        {
+                            StateTimeCounter = 0;
+                            RobotState = 42;
+
+                        }
+                        wayindex++;
+                        StartAstar = 1;
+                    }
+                    else
+                    {
+                        statePos++;
+                    }
                 }
             }
         }
+        // Prepare calculation for state machine
+        colcentroid1 = MaxColThreshold1 - 160;
+        colcentroid2 = MaxColThreshold2 - 160;
         // state machine
         //RobotState = 1;
         switch (RobotState) {
@@ -1094,15 +1126,16 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                     checkfronttally = 0;
                 }
                 StateTimeCounter++;
-                if ((MaxAreaThreshold2 > AreaThreshold2Collect) && (StateTimeCounter > 1000)){
-                    StateTimeCounter = 0;
-                    RobotState = 30;
+                if(wayindex < (NUMWAYPOINTS-3)){
+                    if ((MaxAreaThreshold2 > AreaThreshold2Collect) && (StateTimeCounter > 500)){
+                        StateTimeCounter = 0;
+                        RobotState = 30;
+                    }
+                    if ((MaxAreaThreshold1 > MaxAreaThreshold2) && (MaxAreaThreshold1 > AreaThreshold2Collect) && (StateTimeCounter > 500)){
+                        StateTimeCounter = 0;
+                        RobotState = 20;
+                    }
                 }
-                if ((MaxAreaThreshold1 > MaxAreaThreshold2) && (MaxAreaThreshold1 > AreaThreshold2Collect) && (StateTimeCounter > 1000)){
-                    StateTimeCounter = 0;
-                    RobotState = 20;
-                }
-
                 break;
 
             case 10:
@@ -1141,7 +1174,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 if (MaxColThreshold1 == 0 || MaxAreaThreshold1 < 3){
                     vref = 0;
                     turn = 0;
-                    if (StateTimeCounter == 10000){
+                    if (StateTimeCounter == 1000){
                         StateTimeCounter = 0;
                         RobotState = 1;
                     }
@@ -1201,7 +1234,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 if (MaxColThreshold2 == 0 || MaxAreaThreshold2 < 3){
                     vref = 0;
                     turn = 0;
-                    if (StateTimeCounter == 10000){
+                    if (StateTimeCounter == 1000){
                         StateTimeCounter = 0;
                         RobotState = 1;
                     }
@@ -1251,6 +1284,52 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 if (StateTimeCounter == 1000){
                     StateTimeCounter = 0;
                     RobotState = 1;
+                }
+                break;
+
+            // place orange ball
+            case 40:
+                setGate(0);
+                setTongue(1);
+                StateTimeCounter++;
+                vref = 0;
+                turn = 0;
+                if (StateTimeCounter > 1000){
+                    setGate(1);
+                }
+                if (StateTimeCounter > 2000)
+                {
+                    vref = -0.8;
+                    turn = 0;
+                }
+                if (StateTimeCounter == 4500)
+                {
+                    setGate(0);
+                    RobotState = 1;
+                    StateTimeCounter = 0;
+                }
+                break;
+
+            // place purple ball
+            case 42:
+                setGate(0);
+                setTongue(0);
+                StateTimeCounter++;
+                vref = 0;
+                turn = 0;
+                if (StateTimeCounter > 1000){
+                    setGate(1);
+                }
+                if (StateTimeCounter > 2000)
+                {
+                    vref = -0.8;
+                    turn = 0;
+                }
+                if (StateTimeCounter == 4500)
+                {
+                    setGate(0);
+                    RobotState = 1;
+                    StateTimeCounter = 0;
                 }
                 break;
 
@@ -1628,6 +1707,7 @@ __interrupt void SWI3_LowestPriority(void)     // FLASH_CORRECTABLE_ERROR
                         {
                             obsMap[obsIndex].isFound = 1;
                             map[obsIndex] = 'x';
+                            insertObsQueue(mapCol, mapRow);
                             ReAstar = 1;
                         }
                     }
