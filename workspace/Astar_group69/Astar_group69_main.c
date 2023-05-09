@@ -235,6 +235,14 @@ float NextNextLargestAreaThreshold2 = 0;
 float NextNextLargestColThreshold2 = 0;
 float NextNextLargestRowThreshold2 = 0;
 
+// Vision code variables [TH]
+float colcentroid1 = 0;
+float colcentroid2 = 0;
+float kpvision = -0.05;
+uint16_t StateTimeCounter = 0;
+static uint16_t AreaThreshold2Collect = 50;
+static uint16_t RowThreshold2State22 = 195;
+
 uint32_t numThres1 = 0;
 uint32_t numThres2 = 0;
 
@@ -355,7 +363,27 @@ int16_t DAN28027Garbage = 0;
 int16_t dan28027adc1 = 0;
 int16_t dan28027adc2 = 0;
 uint16_t MPU9250ignoreCNT = 0;  //This is ignoring the first few interrupts if ADCC_ISR and start sending to IMU after these first few interrupts.
+///////////////gate and tongue////////////////
+float gateOpen = -89;
+float gateClose = 70;
+void setGate(int isOpen){
+    if (isOpen){
+        setEPWM3A_RCServo(gateOpen);
+    }else{
+        setEPWM3A_RCServo(gateClose);
+    }
+}
 
+float tongueOrange = 0;
+float tonguePurple = 70;
+void setTongue(int isOrange){
+    if (isOrange){
+        setEPWM5A_RCServo(tongueOrange);
+    }else{
+        setEPWM5A_RCServo(tonguePurple);
+    }
+}
+////////////////////////////////////////////
 void main(void)
 {
     // PLL, WatchDog, enable Peripheral Clocks
@@ -572,7 +600,8 @@ void main(void)
 //    }
 
 
-
+    setGate(0);
+    setTongue(1);
     // IDLE loop. Just sit and loop forever (optional):
     while(1)
     {
@@ -723,98 +752,12 @@ __interrupt void cpu_timer2_isr(void)
 
     CpuTimer2.InterruptCount++;
 
-      if ((CpuTimer2.InterruptCount % 10) == 0) {
-//          UARTPrint = 1;
-      }
-
-    int obsRow;
-    int obsCol;
-    int mapRow;
-    int mapCol;
-
-    ReAstar = 0;
-    for (int i=0 ; i<NUM_CANDIDATE ; ++i)
-    {
-        if (obstacleCandidate[i].isCandidate && fabs(turn) < 0.5)
-        {
-            obsRow = round(obstacleCandidate[i].y);
-            obsCol = round(obstacleCandidate[i].x);
-            obsIndex = (11 - obsRow) * 11 + obsCol + 5;
-            mapRow = (11 - obsRow);
-            mapCol= obsCol + 5;
-            if (obsMap[obsIndex].isFound != 1)
-            {
-                if ((obsCol >= -5) && (obsCol <= 5) && (obsRow >= 0) && (obsRow < 11))
-                {
-//                    obsIndex = (11 - obsRow) * 11 + obsCol - 5;
-                    if (!(( (mapRow%2) == 0) && ( (mapCol%2) == 0)) )
-                    if (obsMap[obsIndex].counter < SOLID_OBS_NUM)
-                    {
-                        obsMap[obsIndex].counter++;
-                    }
-                    else
-                    {
-                        obsMap[obsIndex].isFound = 1;
-                        map[obsIndex] = 'x';
-                        ReAstar = 1;
-                    }
-                }
-            }
-
-        }
+    if ((CpuTimer2.InterruptCount % 10) == 0) {
+        //          UARTPrint = 1;
     }
 
-    if (ReAstar)
-    {
-        StartAstar = 1;
-    }
 
-//        if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
-//        {
-//            if (edgeMap[edgeIndex].counter < SOLID_OBS_NUM)
-//            {
-//                edgeMap[edgeIndex].counter++;
-//            }
-//            else
-//            {
-//                edgeMap[edgeIndex].isFound = 1;
-//            }
-//        }
-//    }
-
-//    for (int i=0 ; i<176 ; ++i)
-//    {
-//        int row = i/11;
-//        int col = i%11;
-//        int neighborRow;
-//        int neighborCol;
-//        int minRow;
-//        int minCol;
-//
-//        // 230504 YASU if an edge is found, search the other four neighbor edges.
-//        // See if they form an obstacle or not.
-//        if (edgeMap[i].isFound)
-//        {
-//            for (int j=-1 ; j<=1 ; j+=2)
-//            {
-//                for (int k=-1 ; k<=1 ; k+=2)
-//                {
-//                    neighborRow = row + j;
-//                    neighborCol = col + k;
-//                    if ((neighborRow >= 0) && (neighborCol >= 0) && (neighborRow <= 10) && (neighborCol <= 10) && (edgeMap[neighborRow*11 + neighborCol].isFound == 1))
-//                    {
-//                        minRow = MIN(row,neighborRow);
-//                        minCol = MIN(col,neighborCol);
-//
-//                        testMap[minRow*11 + minCol] = 'x';
-//                        testMap[(minRow + 1)*11 + minCol] = 'x';
-//                        testMap[minRow*11 + minCol + 1] = 'x';
-//                        testMap[(minRow + 1)*11 + minCol + 1] = 'x';
-//                    }
-//                }
-//            }
-//        }
-//    }
+    PostSWI3();
 }
 
 void setF28027EPWM1A(float controleffort) {
@@ -1135,61 +1078,239 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             }
         }
         // state machine
-        RobotState = 1;
+        //RobotState = 1;
         switch (RobotState) {
-        case 1:
-
-            // vref and turn are the vref and turn returned from xy_control
-
-            if (LADARfront < 1.2) {
-                vref = 0.2;
-                checkfronttally++;
-                if (checkfronttally > 310) { // check if LADARfront < 1.2 for 310ms or 3 LADAR samples
-                    RobotState = 10; // Wall follow
-                    WallFollowtime = 0;
-                    right_wall_follow_state = 1;
+            case 1:
+                // vref and turn are the vref and turn returned from xy_control
+                if (LADARfront < 1.2) {
+                    vref = 0.2;
+                    checkfronttally++;
+                    if (checkfronttally > 310) { // check if LADARfront < 1.2 for 310ms or 3 LADAR samples
+                        RobotState = 10; // Wall follow
+                        WallFollowtime = 0;
+                        right_wall_follow_state = 1;
+                    }
+                } else {
+                    checkfronttally = 0;
                 }
-            } else {
-                checkfronttally = 0;
-            }
-
-            break;
-        case 10:
-            if (right_wall_follow_state == 1) {
-                //Left Turn
-                turn = Kp_front_wall*(14.5 - LADARfront);
-                vref = front_turn_velocity;
-                if (LADARfront > left_turn_Stop_threshold) {
-                    right_wall_follow_state = 2;
+                StateTimeCounter++;
+                if ((MaxAreaThreshold2 > AreaThreshold2Collect) && (StateTimeCounter > 1000)){
+                    StateTimeCounter = 0;
+                    RobotState = 30;
                 }
-            } else if (right_wall_follow_state == 2) {
-                //Right Wall Follow
-                turn = Kp_right_wal*(ref_right_wall - LADARrightfront);
-                vref = foward_velocity;
-                if (LADARfront < left_turn_Start_threshold) {
-                    right_wall_follow_state = 1;
+                if ((MaxAreaThreshold1 > MaxAreaThreshold2) && (MaxAreaThreshold1 > AreaThreshold2Collect) && (StateTimeCounter > 1000)){
+                    StateTimeCounter = 0;
+                    RobotState = 20;
                 }
-            }
-            if (turn > turn_saturation) {
-                turn = turn_saturation;
-            }
-            if (turn < -turn_saturation) {
-                turn = -turn_saturation;
-            }
 
-            WallFollowtime++;
-            if ( (WallFollowtime > 5000) && (LADARfront > 1.5) ) {
-                RobotState = 1;
-                checkfronttally = 0;
-            }
-            break;
+                break;
 
-        case 20:
-            // put vision code here
-            break;
-        default:
-            break;
-        }
+            case 10:
+                if (right_wall_follow_state == 1) {
+                    //Left Turn
+                    turn = Kp_front_wall*(14.5 - LADARfront);
+                    vref = front_turn_velocity;
+                    if (LADARfront > left_turn_Stop_threshold) {
+                        right_wall_follow_state = 2;
+                    }
+                } else if (right_wall_follow_state == 2) {
+                    //Right Wall Follow
+                    turn = Kp_right_wal*(ref_right_wall - LADARrightfront);
+                    vref = foward_velocity;
+                    if (LADARfront < left_turn_Start_threshold) {
+                        right_wall_follow_state = 1;
+                    }
+                }
+                if (turn > turn_saturation) {
+                    turn = turn_saturation;
+                }
+                if (turn < -turn_saturation) {
+                    turn = -turn_saturation;
+                }
+
+                WallFollowtime++;
+                if ( (WallFollowtime > 5000) && (LADARfront > 1.5) ) {
+                    RobotState = 1;
+                    checkfronttally = 0;
+                }
+                break;
+
+            case 20: //find orange
+                // vision code [TH]
+                StateTimeCounter++;
+                if (MaxColThreshold1 == 0 || MaxAreaThreshold1 < 3){
+                    vref = 0;
+                    turn = 0;
+                    if (StateTimeCounter == 10000){
+                        StateTimeCounter = 0;
+                        RobotState = 1;
+                    }
+                }
+                else {
+                    vref = 0.75;
+                    turn = kpvision * (0 - colcentroid1);
+                    setTongue(1);
+                }
+
+                if (MaxRowThreshold1 > RowThreshold2State22){
+                    StateTimeCounter = 0;
+                    RobotState = 22;
+                }
+                break;
+
+            case 22: //open for orange
+                vref = 0;
+                turn = 0;
+
+                StateTimeCounter++;
+                if (StateTimeCounter == 500){
+                    setGate(1);
+                    setTongue(1);
+                }
+                if (StateTimeCounter == 1000){
+                    StateTimeCounter = 0;
+                    RobotState = 24;
+                }
+                break;
+
+            case 24:
+                vref = 0.5;
+                turn = 0;
+                StateTimeCounter++;
+                if (StateTimeCounter == 1000){
+                    StateTimeCounter = 0;
+                    RobotState = 26;
+                }
+                break;
+
+            case 26:
+                vref = 0;
+                turn = 0;
+                setGate(0);
+                setTongue(1);
+                StateTimeCounter++;
+                if (StateTimeCounter == 1000){
+                    StateTimeCounter = 0;
+                    RobotState = 1;
+                }
+                break;
+
+            case 30:
+                // vision code [TH]
+                StateTimeCounter++;
+                if (MaxColThreshold2 == 0 || MaxAreaThreshold2 < 3){
+                    vref = 0;
+                    turn = 0;
+                    if (StateTimeCounter == 10000){
+                        StateTimeCounter = 0;
+                        RobotState = 1;
+                    }
+                }
+                else {
+                    vref = 0.75;
+                    turn = kpvision * (0 - colcentroid2);
+                    setTongue(0);
+                }
+
+                if (MaxRowThreshold2 > RowThreshold2State22){
+                    StateTimeCounter = 0;
+                    RobotState = 32;
+                }
+                break;
+
+            case 32:
+                vref = 0;
+                turn = 0;
+                StateTimeCounter++;
+                if (StateTimeCounter == 500){
+                    setGate(1);
+                    setTongue(0);
+                }
+                if (StateTimeCounter == 1000){
+                    StateTimeCounter = 0;
+                    RobotState = 34;
+                }
+                break;
+
+            case 34:
+                vref = 0.5;
+                turn = 0;
+                StateTimeCounter++;
+                if (StateTimeCounter == 1000){
+                    StateTimeCounter = 0;
+                    RobotState = 36;
+                }
+                break;
+
+            case 36:
+                vref = 0;
+                turn = 0;
+                setGate(0);
+                setTongue(0);
+                StateTimeCounter++;
+                if (StateTimeCounter == 1000){
+                    StateTimeCounter = 0;
+                    RobotState = 1;
+                }
+                break;
+
+            default:
+                break;
+            }
+//        switch (RobotState) {
+//        case 1:
+//
+//            // vref and turn are the vref and turn returned from xy_control
+//
+//            if (LADARfront < 1.2) {
+//                vref = 0.2;
+//                checkfronttally++;
+//                if (checkfronttally > 310) { // check if LADARfront < 1.2 for 310ms or 3 LADAR samples
+//                    RobotState = 10; // Wall follow
+//                    WallFollowtime = 0;
+//                    right_wall_follow_state = 1;
+//                }
+//            } else {
+//                checkfronttally = 0;
+//            }
+//
+//            break;
+//        case 10:
+//            if (right_wall_follow_state == 1) {
+//                //Left Turn
+//                turn = Kp_front_wall*(14.5 - LADARfront);
+//                vref = front_turn_velocity;
+//                if (LADARfront > left_turn_Stop_threshold) {
+//                    right_wall_follow_state = 2;
+//                }
+//            } else if (right_wall_follow_state == 2) {
+//                //Right Wall Follow
+//                turn = Kp_right_wal*(ref_right_wall - LADARrightfront);
+//                vref = foward_velocity;
+//                if (LADARfront < left_turn_Start_threshold) {
+//                    right_wall_follow_state = 1;
+//                }
+//            }
+//            if (turn > turn_saturation) {
+//                turn = turn_saturation;
+//            }
+//            if (turn < -turn_saturation) {
+//                turn = -turn_saturation;
+//            }
+//
+//            WallFollowtime++;
+//            if ( (WallFollowtime > 5000) && (LADARfront > 1.5) ) {
+//                RobotState = 1;
+//                checkfronttally = 0;
+//            }
+//            break;
+//
+//        case 20:
+//            // put vision code here
+//            break;
+//        default:
+//            break;
+//        }
         if (AstarRunning == 1) {  // pause the robot while Astar is running on the PI4.  Once new path sent from PI AstarRunning will be set to 0
             vref = 0;
             turn = 0;
@@ -1209,11 +1330,11 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             DataToLabView.floatData[0] = ROBOTps.x;
             DataToLabView.floatData[1] = ROBOTps.y;
             DataToLabView.floatData[2] = ROBOTps.theta;
-            DataToLabView.floatData[3] = (float)timecount;
-            DataToLabView.floatData[4] = 0.5*(LeftVel + RightVel);
-            DataToLabView.floatData[5] = (float)RobotState;
-            DataToLabView.floatData[6] = (float)statePos;
-            DataToLabView.floatData[7] = LADARfront;
+            DataToLabView.floatData[3] = 1;
+            DataToLabView.floatData[4] = 2;
+            DataToLabView.floatData[5] = 0;
+            DataToLabView.floatData[6] = 4;
+            DataToLabView.floatData[7] = 5;
             LVsenddata[0] = '*';  // header for LVdata
             LVsenddata[1] = '$';
             for (i=0;i<LVNUM_TOFROM_FLOATS*4;i++) {
@@ -1476,6 +1597,48 @@ __interrupt void SWI3_LowestPriority(void)     // FLASH_CORRECTABLE_ERROR
     PieCtrlRegs.PIEACK.all = 0xFFFF;    // Enable PIE interrupts
     __asm("  NOP");
     EINT;
+
+    int obsRow = 0;
+    int obsCol = 0;
+    int mapRow = 0;
+    int mapCol = 0;
+
+    ReAstar = 0;
+
+    for (int i=0 ; i<NUM_CANDIDATE ; ++i)
+    {
+        if (obstacleCandidate[i].isCandidate && fabs(turn) < 0.5)
+        {
+            obsRow = round(obstacleCandidate[i].y);
+            obsCol = round(obstacleCandidate[i].x);
+            obsIndex = (11 - obsRow) * 11 + obsCol + 5;
+            mapRow = (11 - obsRow);
+            mapCol= obsCol + 5;
+            if (obsMap[obsIndex].isFound != 1)
+            {
+                if ((obsCol >= -5) && (obsCol <= 5) && (obsRow >= 0) && (obsRow < 11))
+                {
+                    if (!(( (mapRow%2) == 0) && ( (mapCol%2) == 0)) )
+                    {
+                        if (obsMap[obsIndex].counter < SOLID_OBS_NUM)
+                        {
+                            obsMap[obsIndex].counter++;
+                        }
+                        else
+                        {
+                            obsMap[obsIndex].isFound = 1;
+                            map[obsIndex] = 'x';
+                            ReAstar = 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (ReAstar)
+        StartAstar = 1;
+
 
     //###############################################################################################
     // Insert SWI ISR Code here.......
