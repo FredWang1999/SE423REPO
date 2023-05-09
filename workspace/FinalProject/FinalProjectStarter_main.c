@@ -327,17 +327,17 @@ void main(void)
     setupSpib();
 
     EALLOW;
-    EPwm4Regs.ETSEL.bit.SOCAEN = 0; // Disable SOC on A group
-    EPwm4Regs.TBCTL.bit.CTRMODE = 3; // freeze counter
-    EPwm4Regs.ETSEL.bit.SOCASEL = 2; // Select Event when counter equal to PRD
-    EPwm4Regs.ETPS.bit.SOCAPRD = 1; // Generate pulse on 1st event
-    EPwm4Regs.TBCTR = 0x0; // Clear counter
-    EPwm4Regs.TBPHS.bit.TBPHS = 0x0000; // Phase is 0
-    EPwm4Regs.TBCTL.bit.PHSEN = 0; // Disable phase loading
-    EPwm4Regs.TBCTL.bit.CLKDIV = 0; // divide by 1  50Mhz Clock
-    EPwm4Regs.TBPRD = 50000;  // Set Period to 1ms sample.  Input clock is 50MHz.
-    // Notice here that we are not setting CMPA or CMPB because we are not using the PWM signal
-    EPwm4Regs.ETSEL.bit.SOCAEN = 1; //enable SOCA
+//    EPwm4Regs.ETSEL.bit.SOCAEN = 0; // Disable SOC on A group
+//    EPwm4Regs.TBCTL.bit.CTRMODE = 3; // freeze counter
+//    EPwm4Regs.ETSEL.bit.SOCASEL = 2; // Select Event when counter equal to PRD
+//    EPwm4Regs.ETPS.bit.SOCAPRD = 1; // Generate pulse on 1st event
+//    EPwm4Regs.TBCTR = 0x0; // Clear counter
+//    EPwm4Regs.TBPHS.bit.TBPHS = 0x0000; // Phase is 0
+//    EPwm4Regs.TBCTL.bit.PHSEN = 0; // Disable phase loading
+//    EPwm4Regs.TBCTL.bit.CLKDIV = 0; // divide by 1  50Mhz Clock
+//    EPwm4Regs.TBPRD = 50000;  // Set Period to 1ms sample.  Input clock is 50MHz.
+//    // Notice here that we are not setting CMPA or CMPB because we are not using the PWM signal
+//    EPwm4Regs.ETSEL.bit.SOCAEN = 1; //enable SOCA
     //EPwm4Regs.TBCTL.bit.CTRMODE = 0; //unfreeze,  wait to do this right before enabling interrupts
     EDIS;
 
@@ -418,37 +418,37 @@ void main(void)
     while(1)
     {
         if (UARTPrint == 1 ) {
-
-            if (readbuttons() == 0) {
-                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);				
-//                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
-                UART_printfLine(2,"F%.4f R%.4f",LADARfront,LADARrightfront);
-            } else if (readbuttons() == 1) {
-                UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
-                UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
-				//UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
-                //UART_printfLine(2,"Ln1:%.3f Ln2:%.3f",printLinux1,printLinux2);
-            } else if (readbuttons() == 2) {
-                UART_printfLine(1,"O2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold1,NextLargestColThreshold1,NextLargestRowThreshold1);
-                UART_printfLine(2,"P2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold2,NextLargestColThreshold2,NextLargestRowThreshold2);
-                // UART_printfLine(1,"%.2f %.2f",adcC2Volt,adcC3Volt);
-                // UART_printfLine(2,"%.2f %.2f",adcC4Volt,adcC5Volt);
-            } else if (readbuttons() == 4) {
-                UART_printfLine(1,"O3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold1,NextNextLargestColThreshold1,NextNextLargestRowThreshold1);
-                UART_printfLine(2,"P3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold2,NextNextLargestColThreshold2,NextNextLargestRowThreshold2);
-                // UART_printfLine(1,"L:%.3f R:%.3f",LeftVel,RightVel);
-                // UART_printfLine(2,"uL:%.2f uR:%.2f",uLeft,uRight);
-            } else if (readbuttons() == 8) {
-                UART_printfLine(1,"020x%.2f y%.2f",ladar_pts[20].x,ladar_pts[20].y);
-                UART_printfLine(2,"150x%.2f y%.2f",ladar_pts[150].x,ladar_pts[150].y);
-            } else if (readbuttons() == 3) {
-                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
-                UART_printfLine(2,"MPU:%.2f LPR:%.2f",gyro9250_radians,gyroLPR510_radians);
-            } else if (readbuttons() == 5) {
-                UART_printfLine(1,"Ox:%.2f:Oy:%.2f:Oa%.2f",OPTITRACKps.x,OPTITRACKps.y,OPTITRACKps.theta);
-                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
-            }
-
+//
+//            if (readbuttons() == 0) {
+//                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
+////                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
+//                UART_printfLine(2,"F%.4f R%.4f",LADARfront,LADARrightfront);
+//            } else if (readbuttons() == 1) {
+//                UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
+//                UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
+//				//UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
+//                //UART_printfLine(2,"Ln1:%.3f Ln2:%.3f",printLinux1,printLinux2);
+//            } else if (readbuttons() == 2) {
+//                UART_printfLine(1,"O2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold1,NextLargestColThreshold1,NextLargestRowThreshold1);
+//                UART_printfLine(2,"P2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold2,NextLargestColThreshold2,NextLargestRowThreshold2);
+//                // UART_printfLine(1,"%.2f %.2f",adcC2Volt,adcC3Volt);
+//                // UART_printfLine(2,"%.2f %.2f",adcC4Volt,adcC5Volt);
+//            } else if (readbuttons() == 4) {
+//                UART_printfLine(1,"O3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold1,NextNextLargestColThreshold1,NextNextLargestRowThreshold1);
+//                UART_printfLine(2,"P3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold2,NextNextLargestColThreshold2,NextNextLargestRowThreshold2);
+//                // UART_printfLine(1,"L:%.3f R:%.3f",LeftVel,RightVel);
+//                // UART_printfLine(2,"uL:%.2f uR:%.2f",uLeft,uRight);
+//            } else if (readbuttons() == 8) {
+//                UART_printfLine(1,"020x%.2f y%.2f",ladar_pts[20].x,ladar_pts[20].y);
+//                UART_printfLine(2,"150x%.2f y%.2f",ladar_pts[150].x,ladar_pts[150].y);
+//            } else if (readbuttons() == 3) {
+//                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
+//                UART_printfLine(2,"MPU:%.2f LPR:%.2f",gyro9250_radians,gyroLPR510_radians);
+//            } else if (readbuttons() == 5) {
+//                UART_printfLine(1,"Ox:%.2f:Oy:%.2f:Oa%.2f",OPTITRACKps.x,OPTITRACKps.y,OPTITRACKps.theta);
+//                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
+//            }
+            UART_printfLine(1,"%.3f",ladar_data[LADARi].distance_ping);
             UARTPrint = 0;
         }
     }

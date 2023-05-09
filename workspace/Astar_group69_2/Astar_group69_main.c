@@ -1,7 +1,7 @@
 //#############################################################################
-// FILE:   FinalProjectStarter_main.c
+// FILE:   AstarProjectStarter_main.c
 //
-// TITLE:  Final Project Starter
+// TITLE:  Astar Starter
 //#############################################################################
 
 // Included Files
@@ -29,6 +29,7 @@
 #define HALFPI      1.5707963267948966192313216916398
 // The Launchpad's CPU Frequency set to 200 you should not change this value
 #define LAUNCHPAD_CPU_FREQUENCY 200
+#define MIN(A,B)    (((A) < (B)) ? (A) : (B));
 
 // Interrupt Service Routines predefinition
 __interrupt void cpu_timer0_isr(void);
@@ -44,6 +45,133 @@ void setF28027EPWM1A(float controleffort);
 int16_t EPwm1A_F28027 = 1500;
 void setF28027EPWM2A(float controleffort);
 int16_t EPwm2A_F28027 = 1500;
+//structure for pose and obstacle from F28
+/*
+total length is 2*2 + 2*1 + 22*1 = 28 16 bit chars
+ */
+typedef struct pose_obstacle{
+    float x; //4
+    float y;
+    short destrow; //astar end point row
+    short destcol; //astar end point col
+    char mapCondensed[22];
+} pose_obstacle;
+
+//union of char and pose_obstacle for reading data
+typedef union {
+    char obs_data_char[28];  // char is 16bits on F28379D
+    pose_obstacle cur_obs;
+} int_pose_union;
+
+
+extern char path_received[81];
+extern int16_t newAstarPath;
+int16_t robotdestSize = 39;
+int16_t numpts = 0;
+int16_t pathRow[50];  // made 50 long but only needs to be 40.
+int16_t pathCol[50];
+
+int16_t StartAstar = 0;
+int16_t AstarDelay = 0;
+int16_t AstarRunning = 1;  // Initially 1 so the robot does not start until the first Astar command has run
+int_pose_union SendAStarInfo;
+char SendAStarRawData[36];
+uint32_t AstarendEqualsStart = 0;
+uint32_t AstaroutsideMap = 0;
+uint32_t AstarstartstopObstacle = 0;
+uint32_t AstarResetMap = 0;
+
+int edgeIndex = 0;
+
+// For A* Default map with no obstacles just door opening
+char map[176] =      //16x11
+{   '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    'x', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', 'x',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
+
+char mapstart[176] =      //16x11
+{   '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    'x', 'x', 'x', 'x', '0', '0', '0', 'x', 'x', 'x', 'x',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
+
+char testMap[176] =      //16x11
+{   '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0',
+    '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'   };
+
+// 230502 YASU declared edgeMap for obstacles, it has the same dimension to the map.
+typedef struct edge{
+    _Bool isEdge;
+    _Bool isFound;
+    _Bool isSent;
+    int counter;
+}edge;
+
+edge edgeMap[176];
+edge obsMap[176];
+
+// 230502 YASU declared obstacleCandidate to store LiDAR distances less than 4
+typedef struct obsCandidate{
+    int x; //4
+    int y;
+    float distance;
+    _Bool isCandidate;
+} obsCandidate;
+
+#define NUM_CANDIDATE 5
+#define CANDIDATE_DIST 4
+// 230503 YASU changed NUM_CANDIDATE from 75 to 5 to simplify
+obsCandidate obstacleCandidate[NUM_CANDIDATE];
+int obsDetectAnglePeriod = 180 / (NUM_CANDIDATE-1);
+
+// 230502 YASU declared horiEdgeCounter & vertEdgeCounter to determine solid obstacles,
+// If horiEdgeCounter is larger than SOLID_OBS_NUM, we say that there's an horizontal edge on the x position, for y, vice versa.
+#define SOLID_OBS_NUM 20
+float horiEdgeCounter = 0;
+float vertEdgeCounter = 0;
+float sumHoriEdgeX = 0;
+float sumVertEdgeY = 0;
+int prevEdgeX = 0;
+int prevEdgeY = 0;
 
 uint32_t numTimer0calls = 0;
 uint16_t UARTPrint = 0;
@@ -97,14 +225,6 @@ float NextNextLargestAreaThreshold2 = 0;
 float NextNextLargestColThreshold2 = 0;
 float NextNextLargestRowThreshold2 = 0;
 
-// Vision code variables [TH]
-float colcentroid1 = 0;
-float colcentroid2 = 0;
-float kpvision = -0.05;
-uint16_t StateTimeCounter = 0;
-static uint16_t AreaThreshold2Collect = 50;
-static uint16_t RowThreshold2State22 = 195;
-
 uint32_t numThres1 = 0;
 uint32_t numThres2 = 0;
 
@@ -118,9 +238,11 @@ int16_t RobotState = 1;
 int16_t checkfronttally = 0;
 int32_t WallFollowtime = 0;
 
-#define NUMWAYPOINTS 10
+#define NUMWAYPOINTS 7
 uint16_t statePos = 0;
-pose robotdest[NUMWAYPOINTS];  // array of waypoints for the robot
+pose robotdest[40];  // array of waypoints for the robot
+pose waypoints[NUMWAYPOINTS];  // array of waypoints for the robot
+int16_t wayindex = 0;
 uint16_t i = 0;//for loop
 
 uint16_t right_wall_follow_state = 2;  // right follow
@@ -224,40 +346,6 @@ int16_t dan28027adc1 = 0;
 int16_t dan28027adc2 = 0;
 uint16_t MPU9250ignoreCNT = 0;  //This is ignoring the first few interrupts if ADCC_ISR and start sending to IMU after these first few interrupts.
 
-///////////////gate and tongue////////////////
-float gateOpen = -89;
-float gateClose = 70;
-void setGate(int isOpen){
-    if (isOpen){
-        setEPWM3A_RCServo(gateOpen);
-    }else{
-        setEPWM3A_RCServo(gateClose);
-    }
-}
-
-float tongueOrange = 0;
-float tonguePurple = 70;
-void setTongue(int isOrange){
-    if (isOrange){
-        setEPWM5A_RCServo(tongueOrange);
-    }else{
-        setEPWM5A_RCServo(tonguePurple);
-    }
-}
-////////////////////////////////////////////
-//points and map
-typedef struct gridPoint{
-    int isObstacle;
-    int needSent;
-    int counter;
-}gridPoint;
-
-gridPoint grid[176];
-#define lidarMaxDistThershold  10
-#define lidarMinDistThershold  1
-#define gridLidarCount 5
-/////
-
 void main(void)
 {
     // PLL, WatchDog, enable Peripheral Clocks
@@ -344,7 +432,7 @@ void main(void)
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);  // Currently not used for any purpose
     ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 100000); // !!!!! Important, Used to command LADAR every 100ms.  Do not Change.
-    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 40000); // Currently not used for any purpose
+    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 1000); // Currently not used for any purpose
 
     // Enable CpuTimer Interrupt bit TIE
     CpuTimer0Regs.TCR.all = 0x4000;
@@ -356,7 +444,7 @@ void main(void)
     init_serialSCIA(&SerialA,115200);
     init_serialSCIB(&SerialB,19200);
     init_serialSCIC(&SerialC,19200);
-    init_serialSCID(&SerialD,2083332);
+	init_serialSCID(&SerialD,2083332);
 
     for (LADARi = 0; LADARi < 228; LADARi++) {
         ladar_data[LADARi].angle = ((3*LADARi+44)*0.3515625-135)*0.01745329; //0.017453292519943 is pi/180, multiplication is faster; 0.3515625 is 360/1024
@@ -383,8 +471,6 @@ void main(void)
     //EPwm4Regs.TBCTL.bit.CTRMODE = 0; //unfreeze,  wait to do this right before enabling interrupts
     EDIS;
 
-
-
     // Enable CPU int1 which is connected to CPU-Timer 0, CPU int13
     // which is connected to CPU-Timer 1, and CPU int 14, which is connected
     // to CPU-Timer 2:  int 12 is for the SWI.  
@@ -405,20 +491,17 @@ void main(void)
     PieCtrlRegs.PIEIER12.bit.INTx11 = 1; //SWI3  Lowest priority
 
 
-    robotdest[0].x = -4;    robotdest[0].y = 10;
-    robotdest[1].x = -4;    robotdest[1].y = 2;
+    waypoints[0].x = -5;    waypoints[0].y = -3;
+    waypoints[1].x = 3;    waypoints[1].y = 7;
     //middle of bottom
-    robotdest[2].x = 0;     robotdest[2].y = 2;
+    waypoints[2].x = -3;     waypoints[2].y = 7;
     //outside the course
-    robotdest[3].x = 0;     robotdest[3].y = -3;
+    waypoints[3].x = 5;     waypoints[3].y = -3;
     //back to middle
-    robotdest[4].x = 0;     robotdest[4].y = 2;
-    robotdest[5].x = 4;     robotdest[5].y = 2;
-    robotdest[6].x = 4;     robotdest[6].y = 10;
-    robotdest[7].x = 0;     robotdest[7].y = 9;
-    robotdest[8].x = 2;     robotdest[8].y = 7;
-    robotdest[9].x = 4;     robotdest[9].y = 5;
-
+    waypoints[4].x = 0;     waypoints[4].y = 11;
+    waypoints[5].x = -2;     waypoints[5].y = -4;
+    waypoints[6].x = 2;     waypoints[6].y = -4;
+//    waypoints[7].x = 0;     waypoints[7].y = 9;
 
     // ROBOTps will be updated by Optitrack during gyro calibration
     // TODO: specify the starting position of the robot
@@ -459,25 +542,22 @@ void main(void)
     GpioDataRegs.GPDCLEAR.bit.GPIO97 = 1;
     // LED5 is GPIO111
     GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
-    //init other stuff final project
-    setGate(0);
-    setTongue(1);
-    for (int i = 0; i < 176; i++){
-        grid[i].counter = 0;
-        grid[i].isObstacle = 0;
-        grid[i].needSent = 0;
+
+    // 230502 YASU initialize edgeMap
+    for (int i=11 ; i<121 ; ++i)
+    {
+            edgeMap[row*11 + col].isEdge = 1;
+    }
+
 
     // IDLE loop. Just sit and loop forever (optional):
-
-    }
     while(1)
     {
         if (UARTPrint == 1 ) {
 
 //            if (readbuttons() == 0) {
 //                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
-////                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
-//                UART_printfLine(2,"F%.4f R%.4f",LADARfront,LADARrightfront);
+//                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
 //            } else if (readbuttons() == 1) {
 //                UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
 //                UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
@@ -502,6 +582,11 @@ void main(void)
 //            } else if (readbuttons() == 5) {
 //                UART_printfLine(1,"Ox:%.2f:Oy:%.2f:Oa%.2f",OPTITRACKps.x,OPTITRACKps.y,OPTITRACKps.theta);
 //                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
+//            }
+
+            UART_printfLine(1, "Edge: %.2f", ladar_data[144].distance_pong);
+//            if ( edgeMap[edgeIndex].isFound == 1) {
+//                UART_printfLine(1, "Edge: %.2f", edgeIndex);
 //            }
 
             UARTPrint = 0;
@@ -615,12 +700,100 @@ __interrupt void cpu_timer2_isr(void)
 
     CpuTimer2.InterruptCount++;
 
-    //  if ((CpuTimer2.InterruptCount % 10) == 0) {
-    //      UARTPrint = 1;
-    //  }
+      if ((CpuTimer2.InterruptCount % 10) == 0) {
+//          UARTPrint = 1;
+      }
+
+    for (int i=0 ; i<NUM_CANDIDATE ; ++i)
+    {
+        edgeIndex = obstacleCandidate[i].y * 11 + obstacleCandidate[i].x;
+
+        if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1))
+        {
+            if (edgeMap[edgeIndex].counter < SOLID_OBS_NUM)
+            {
+                edgeMap[edgeIndex].counter++;
+            }
+            else
+            {
+                edgeMap[edgeIndex].isFound;
+            }
+        }
+
+
+        // 230502 YASU if it's a candidate, check it's vertical or horizontal edge.
+//        if (obstacleCandidate[i].isCandidate)
+//        {
+//            // 230502 YASU if it's likely to be a horizontal edge,
+//            if (prevEdgeY == obstacleCandidate[i].y)
+//            {
+//                if (horiEdgeCounter < SOLID_OBS_NUM)
+//                {
+//                    horiEdgeCounter++;
+//                    sumHoriEdgeX += (horiEdgeCounter*obstacleCandidate[i].x + 5);
+//                }
+//                else
+//                {
+//                    edgeIndex =  prevEdgeY * 11 + (int) round(sumHoriEdgeX/horiEdgeCounter);
+////                    edgeIndex = (int) round(sumHoriEdgeX/horiEdgeCounter) * 11 + prevEdgeY;
+//                    if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1)) {
+//                        edgeMap[edgeIndex].isFound = 1;
+//                    }
+//
+//                    sumHoriEdgeX = 0.0;
+//                    prevEdgeY = 0;
+//                    horiEdgeCounter = 0;
+//                }
+//            }
+//            else
+//            {
+//                sumHoriEdgeX = 0;
+//                prevEdgeY = 0;
+//                horiEdgeCounter = 0;
+//            }
+//
+//            if (prevEdgeX == obstacleCandidate[i].x)
+//            {
+//                if (vertEdgeCounter < SOLID_OBS_NUM)
+//                {
+//                    vertEdgeCounter++;
+//                    sumVertEdgeY += (11 - vertEdgeCounter*obstacleCandidate[i].y);
+//                }
+//                else
+//                {
+//                    edgeIndex = (int) round(sumVertEdgeY/vertEdgeCounter) * 11 + prevEdgeX;
+//                    if ((edgeMap[edgeIndex].isEdge) && (edgeMap[edgeIndex].isFound != 1)){
+//                        edgeMap[edgeIndex].isFound = 1;
+//                    }
+//
+//                    sumVertEdgeY = 0.0;
+//                    prevEdgeX = 0;
+//                    vertEdgeCounter = 0;
+//                }
+//            }
+//            else
+//            {
+//                sumVertEdgeY = 0.0;
+//                prevEdgeX = 0;
+//                vertEdgeCounter = 0;
+//            }
+//
+//            prevEdgeX = obstacleCandidate[i].x;
+//            prevEdgeY = obstacleCandidate[i].y;
+//        }
+//        else
+//        {
+//            // 230502 YASU if it's not candidate,
+//            // clear all the counters and positions.
+//            horiEdgeCounter = 0;
+//            vertEdgeCounter = 0;
+//            prevEdgeX = 0;
+//            prevEdgeY = 0;
+//        }
+    }
 }
 
-void setF28027EPWM1A(float controleffort){
+void setF28027EPWM1A(float controleffort) {
     if (controleffort < -10) {
         controleffort = -10;
     }
@@ -709,10 +882,19 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         if (calibration_count == 2000) {
             calibration_state = 3;
             calibration_count = 0;
-            doneCal = 1;
+             doneCal = 1;
+            newAstarPath = 0;
             newOPTITRACKpose = 0;
+            AstarDelay = 0;
         }
     } else if(calibration_state == 3){
+        if (AstarDelay == 1000) {
+            StartAstar = 1;  // First Astar to get first path.
+            AstarDelay++;
+        } else {
+            AstarDelay++;
+        }
+
         accelx -=(accelx_offset);
         accely -=(accely_offset);
         accelz -=(accelz_offset);
@@ -807,6 +989,59 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             OPTITRACKps = UpdateOptitrackStates(ROBOTps, &newOPTITRACKpose);
             new_optitrack = 0;
         }
+        if (newAstarPath == 1) {
+            newAstarPath = 0;
+            AstarRunning = 0;
+            if (path_received[80] == 0) {
+                // means no errors so setup robot to follow this new path???
+                statePos = 1; //set to 1 to not go to the first point(which is the position the robot is at)
+                uint16_t path_index = 0;
+                //get the number of points in path
+                for (path_index = 0; path_index < 40; path_index++){
+                    if (path_received[path_index*2] > 100) {
+                        robotdestSize = path_index;
+                        break;
+                    }
+                }
+                //update the robot dest
+                numpts = MIN(robotdestSize,39); //get the max of path length and 40 (max path length)
+                //get the pathRow and pathCol array and remember this is in reverse order
+                for (path_index = 0; path_index < numpts; path_index++) {
+                    pathRow[path_index] = (int16_t)path_received[path_index*2];
+                    pathCol[path_index] = (int16_t)path_received[path_index*2+1];
+                }
+                for (int i=0 ; i<numpts ; i++)
+                {
+                    robotdest[i].x = pathCol[numpts-1-i] - 5;
+                    robotdest[i].y = 11 - pathRow[numpts-1-i];
+//                    statePos = 1;
+                }
+                statePos = 1;
+            } else {
+                if ((path_received[80]&0x2)==0x2) {
+                    AstarendEqualsStart++;
+                    // end equals start so no need for a new path What else to do here?????
+                }
+                if ((path_received[80]&0x4)==0x4) {
+                    // start and or stop outside of map  ????
+                    AstaroutsideMap++;
+                }
+                if ((path_received[80]&0x8)==0x8) {
+                    // start or stop is an obstacle should also here bit 0 should be set to reset map
+                    AstarstartstopObstacle++;
+                }
+                if ((path_received[80]&0x1)==0x1) {
+                    AstarResetMap++;
+                    // reset Map and start another Astar
+                    for (i=0;i<176;i++) {
+                        map[i] = mapstart[i];
+                    }
+                    StartAstar = 1;
+                }
+            }
+
+
+        }
 
         // Step 0: update B, u
         B[0][0] = cosf(ROBOTps.theta)*0.001;
@@ -859,14 +1094,23 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         // Make sure this function is called every time in this function even if you decide not to use its vref and turn
         // uses xy code to step through an array of positions
         if( xy_control(&vref, &turn, 1.0, ROBOTps.x, ROBOTps.y, robotdest[statePos].x, robotdest[statePos].y, ROBOTps.theta, 0.25, 0.5)) {
-            statePos = (statePos+1)%NUMWAYPOINTS;
+//            statePos = (statePos+1)%NUMWAYPOINTS;
+            if (wayindex != (NUMWAYPOINTS-1))
+            if (AstarRunning == 0)
+            {
+                if (statePos == numpts - 1)
+                {
+                    wayindex++;
+                    StartAstar = 1;
+                }
+                else
+                {
+                    statePos++;
+                }
+            }
         }
-
-        // Prepare calculation for state machine
-        colcentroid1 = MaxColThreshold1 - 160;
-        colcentroid2 = MaxColThreshold2 - 160;
-
         // state machine
+        RobotState = 1;
         switch (RobotState) {
         case 1:
 
@@ -883,18 +1127,8 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             } else {
                 checkfronttally = 0;
             }
-            StateTimeCounter++;
-            if ((MaxAreaThreshold2 > AreaThreshold2Collect) && (StateTimeCounter > 1000)){
-                StateTimeCounter = 0;
-                RobotState = 30;
-            }
-            if ((MaxAreaThreshold1 > MaxAreaThreshold2) && (MaxAreaThreshold1 > AreaThreshold2Collect) && (StateTimeCounter > 1000)){
-                StateTimeCounter = 0;
-                RobotState = 20;
-            }
 
             break;
-
         case 10:
             if (right_wall_follow_state == 1) {
                 //Left Turn
@@ -925,131 +1159,16 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             }
             break;
 
-        case 20: //find orange
-            // vision code [TH]
-            StateTimeCounter++;
-            if (MaxColThreshold1 == 0 || MaxAreaThreshold1 < 3){
-                vref = 0;
-                turn = 0;
-                if (StateTimeCounter == 10000){
-                    StateTimeCounter = 0;
-                    RobotState = 1;
-                }
-            }
-            else {
-                vref = 0.75;
-                turn = kpvision * (0 - colcentroid1);
-                setTongue(1);
-            }
-
-            if (MaxRowThreshold1 > RowThreshold2State22){
-                StateTimeCounter = 0;
-                RobotState = 22;
-            }
+        case 20:
+            // put vision code here
             break;
-
-        case 22: //open for orange
-            vref = 0;
-            turn = 0;
-
-            StateTimeCounter++;
-            if (StateTimeCounter == 500){
-                setGate(1);
-                setTongue(1);
-            }
-            if (StateTimeCounter == 1000){
-                StateTimeCounter = 0;
-                RobotState = 24;
-            }
-            break;
-
-        case 24:
-            vref = 0.5;
-            turn = 0;
-            StateTimeCounter++;
-            if (StateTimeCounter == 1000){
-                StateTimeCounter = 0;
-                RobotState = 26;
-            }
-            break;
-
-        case 26:
-            vref = 0;
-            turn = 0;
-            setGate(0);
-            setTongue(1);
-            StateTimeCounter++;
-            if (StateTimeCounter == 1000){
-                StateTimeCounter = 0;
-                RobotState = 1;
-            }
-            break;
-
-        case 30:
-            // vision code [TH]
-            StateTimeCounter++;
-            if (MaxColThreshold2 == 0 || MaxAreaThreshold2 < 3){
-                vref = 0;
-                turn = 0;
-                if (StateTimeCounter == 10000){
-                    StateTimeCounter = 0;
-                    RobotState = 1;
-                }
-            }
-            else {
-                vref = 0.75;
-                turn = kpvision * (0 - colcentroid2);
-                setTongue(0);
-            }
-
-            if (MaxRowThreshold2 > RowThreshold2State22){
-                StateTimeCounter = 0;
-                RobotState = 32;
-            }
-            break;
-
-        case 32:
-            vref = 0;
-            turn = 0;
-            StateTimeCounter++;
-            if (StateTimeCounter == 500){
-                setGate(1);
-                setTongue(0);
-            }
-            if (StateTimeCounter == 1000){
-                StateTimeCounter = 0;
-                RobotState = 34;
-            }
-            break;
-
-        case 34:
-            vref = 0.5;
-            turn = 0;
-            StateTimeCounter++;
-            if (StateTimeCounter == 1000){
-                StateTimeCounter = 0;
-                RobotState = 36;
-            }
-            break;
-
-        case 36:
-            vref = 0;
-            turn = 0;
-            setGate(0);
-            setTongue(0);
-            StateTimeCounter++;
-            if (StateTimeCounter == 1000){
-                StateTimeCounter = 0;
-                RobotState = 1;
-            }
-            break;
-
         default:
             break;
         }
-
-
-
+        if (AstarRunning == 1) {  // pause the robot while Astar is running on the PI4.  Once new path sent from PI AstarRunning will be set to 0
+            vref = 0;
+            turn = 0;
+        }
 
         //Must be called each time into this SWI1 function
         PIcontrol(&uLeft,&uRight,vref,turn,LeftWheel,RightWheel);
@@ -1062,28 +1181,14 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         RightWheel_1 = RightWheel;
 
         if((timecount%250) == 0) {
-            //send wall data to linux final project
-            float wallSendingX = -1;
-            float wallSendingY = -1;
-            for (int i = 0; i < 176; i++){
-                if ((grid[i].needSent == 1)){
-                    int row = i/11;
-                    int col = i%11;
-                    wallSendingX = (float)col;
-                    wallSendingY = (float)row;
-                    grid[i].needSent = 0;
-                    break;
-                }
-            }
-
             DataToLabView.floatData[0] = ROBOTps.x;
             DataToLabView.floatData[1] = ROBOTps.y;
             DataToLabView.floatData[2] = ROBOTps.theta;
             DataToLabView.floatData[3] = (float)timecount;
             DataToLabView.floatData[4] = 0.5*(LeftVel + RightVel);
             DataToLabView.floatData[5] = (float)RobotState;
-            DataToLabView.floatData[6] = wallSendingX;
-            DataToLabView.floatData[7] = wallSendingY;
+            DataToLabView.floatData[6] = (float)statePos;
+            DataToLabView.floatData[7] = LADARfront;
             LVsenddata[0] = '*';  // header for LVdata
             LVsenddata[1] = '$';
             for (i=0;i<LVNUM_TOFROM_FLOATS*4;i++) {
@@ -1095,11 +1200,77 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             }
             serial_sendSCID(&SerialD, LVsenddata, 4*LVNUM_TOFROM_FLOATS + 2);
         }
+        if (StartAstar == 1) {
+            StartAstar = 0;
+            AstarRunning = 1;
+            SendAStarInfo.cur_obs.x = ROBOTps.x;
+            SendAStarInfo.cur_obs.y = ROBOTps.y;
+
+            // Right now fixed to one point in the course get ride of temp_y and temp_x
+            int16_t temp_y = waypoints[wayindex].y;
+            int16_t temp_x = waypoints[wayindex].x;
+            SendAStarInfo.cur_obs.destrow = 11 - temp_y;
+            SendAStarInfo.cur_obs.destcol = temp_x + 5;
+
+            int16_t currentByte = 0;
+            for (i=0; i<176; i++) {
+                SendAStarInfo.cur_obs.mapCondensed[currentByte] = 0;
+                if (map[i] == 'x') {
+                    SendAStarInfo.cur_obs.mapCondensed[currentByte] |= 0x1;
+                }
+                i++;
+                if (map[i] == 'x') {
+                    SendAStarInfo.cur_obs.mapCondensed[currentByte] |= 0x2;
+                }
+                i++;
+                if (map[i] == 'x') {
+                    SendAStarInfo.cur_obs.mapCondensed[currentByte] |= 0x4;
+                }
+                i++;
+                if (map[i] == 'x') {
+                    SendAStarInfo.cur_obs.mapCondensed[currentByte] |= 0x8;
+                }
+                i++;
+                if (map[i] == 'x') {
+                    SendAStarInfo.cur_obs.mapCondensed[currentByte] |= 0x10;
+                }
+                i++;
+                if (map[i] == 'x') {
+                    SendAStarInfo.cur_obs.mapCondensed[currentByte] |= 0x20;
+                }
+                i++;
+                if (map[i] == 'x') {
+                    SendAStarInfo.cur_obs.mapCondensed[currentByte] |= 0x40;
+                }
+                i++;
+                if (map[i] == 'x') {
+                    SendAStarInfo.cur_obs.mapCondensed[currentByte] |= 0x80;
+                }
+                currentByte++;
+            }
+            SendAStarRawData[0] = '*';
+            SendAStarRawData[1] = '*';
+            SendAStarRawData[2] = SendAStarInfo.obs_data_char[0]&0xFF;
+            SendAStarRawData[3] = (SendAStarInfo.obs_data_char[0]>>8)&0xFF;
+            SendAStarRawData[4] = SendAStarInfo.obs_data_char[1]&0xFF;
+            SendAStarRawData[5] = (SendAStarInfo.obs_data_char[1]>>8)&0xFF;
+            SendAStarRawData[6] = SendAStarInfo.obs_data_char[2]&0xFF;
+            SendAStarRawData[7] = (SendAStarInfo.obs_data_char[2]>>8)&0xFF;
+            SendAStarRawData[8] = SendAStarInfo.obs_data_char[3]&0xFF;
+            SendAStarRawData[9] = (SendAStarInfo.obs_data_char[3]>>8)&0xFF;
+            SendAStarRawData[10] = SendAStarInfo.obs_data_char[4]&0xFF;
+            SendAStarRawData[11] = (SendAStarInfo.obs_data_char[4]>>8)&0xFF;
+            SendAStarRawData[12] = SendAStarInfo.obs_data_char[5]&0xFF;
+            SendAStarRawData[13] = (SendAStarInfo.obs_data_char[5]>>8)&0xFF;
+            for (i=0;i<22;i++) {
+                SendAStarRawData[i+14]=SendAStarInfo.cur_obs.mapCondensed[i];
+            }
+            serial_sendSCID(&SerialD, SendAStarRawData, 36);
+	
+        }
 
     }
     timecount++;
-
-
     if((timecount%200) == 0)
     {
         if(doneCal == 0) {
@@ -1131,8 +1302,6 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 //
 // Connected to PIEIER12_10 (use MINT12 and MG12_10 masks):
 //
-
-
 __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
 {
     // Set interrupt priority:
@@ -1148,6 +1317,10 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
     // Insert SWI ISR Code here.......
     // LED1
     GpioDataRegs.GPATOGGLE.bit.GPIO22 = 1;
+
+    // 230503 YASU convert the obstacle's position from robot coordinate to Astar coordinate (turn 90 degrees clockwise)
+    // (x_new, y_new) = (-y, x)
+
     if (LADARpingpong == 1) {
         // LADARrightfront is the min of dist 52, 53, 54, 55, 56
         LADARrightfront = 19; // 19 is greater than max feet
@@ -1169,6 +1342,41 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_ping*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
             ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_ping*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
         }
+
+        // 230502 YASU sample the LiDAR data to obstacleCandidate NUM_CANDIDATE times
+        // If the distance is less than 4 tiles, set x, y to round(ladar_pts.pos), and set isCandidate to 1
+        // Else, set them to zero
+        for (int i=0 ; i<NUM_CANDIDATE ; ++i)
+        {
+
+            // 230503 YASU clear all data
+            obstacleCandidate[i].x = 0;
+            obstacleCandidate[i].y = 0;
+            obstacleCandidate[i].distance = 0.0;
+            obstacleCandidate[i].isCandidate = 0;
+
+            // 230503 YASU get average of ladar's info
+            for (LADARi = 26+i*obsDetectAnglePeriod; LADARi <= 30+i*obsDetectAnglePeriod ; LADARi++) {
+                obstacleCandidate[i].distance += ladar_data[LADARi].distance_ping;
+                obstacleCandidate[i].x += ladar_pts[LADARi].x;
+                obstacleCandidate[i].y += ladar_pts[LADARi].y;
+            }
+            obstacleCandidate[i].distance /= 5.0;
+
+            if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
+            {
+                obstacleCandidate[i].isCandidate = 1;
+                obstacleCandidate[i].x /= 5.0;
+                obstacleCandidate[i].y /= 5.0;
+            }
+            else
+            {
+                obstacleCandidate[i].isCandidate = 0;
+                obstacleCandidate[i].x = 0.0;
+                obstacleCandidate[i].y = 0.0;
+            }
+        }
+
     } else if (LADARpingpong == 0) {
         // LADARrightfront is the min of dist 52, 53, 54, 55, 56
         LADARrightfront = 19; // 19 is greater than max feet
@@ -1187,51 +1395,42 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
         LADARyoffset = ROBOTps.y + (LADARps.x*sinf(ROBOTps.theta)-LADARps.y*cosf(ROBOTps.theta - PI/2.0));
         for (LADARi = 0; LADARi < 228; LADARi++) {
-
             ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_pong*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
             ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_pong*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
-
-        }
-    }
-
-    //clear grid counter
-    for (int i = 0; i < 176; i++){
-        grid[i].counter = 0;
-    }
-    for (int i = 0; i < 228; i++){
-        float coordX = ladar_pts[i].x;
-        float coordY = ladar_pts[i].y;
-        int coordX_rounded = (int)(coordX + 100.5) - 100;
-        int coordY_rounded = (int)(coordY + 100.5) - 100;
-
-        int col = coordX_rounded + 5;
-        int row = 11 - coordY_rounded;
-        if((col > 10) || (col < 0) || (row > 15) || (row < 0)){
-            continue;
         }
 
+        // 230502 YASU sample the LiDAR data to obstacleCandidate NUM_CANDIDATE times
+        // If the distance is less than 4 tiles, set x, y to round(ladar_pts.pos), and set isCandidate to 1
+        // Else, set them to zero
+        for (int i=0 ; i<NUM_CANDIDATE ; ++i)
+        {
+            // 230503 YASU clear all data
+            obstacleCandidate[i].x = 0;
+            obstacleCandidate[i].y = 0;
+            obstacleCandidate[i].distance = 0.0;
+            obstacleCandidate[i].isCandidate = 0;
 
-        int mapIndex = row*11 + col;
-        if((mapIndex > 175) || (mapIndex < 0)){
-            continue;
-        }
+            // 230503 YASU get average of ladar's info
+            for (LADARi = 26+i*obsDetectAnglePeriod; LADARi <= 30+i*obsDetectAnglePeriod ; LADARi++) {
+                obstacleCandidate[i].distance += ladar_data[LADARi].distance_ping;
+                obstacleCandidate[i].x += ladar_pts[LADARi].x;
+                obstacleCandidate[i].y += ladar_pts[LADARi].y;
+            }
+            obstacleCandidate[i].distance /= 5.0;
 
-        float dist;
-        if(LADARpingpong == 0){
-            dist = ladar_data[i].distance_pong;
-        }else{
-            dist = ladar_data[i].distance_ping;
-        }
-
-        if((dist < lidarMaxDistThershold) && (dist > lidarMinDistThershold)){
-            grid[mapIndex].counter ++;
-            if (grid[mapIndex].counter > 1000) grid[mapIndex].counter = 1000;
-            if ((grid[mapIndex].counter > gridLidarCount) && (grid[mapIndex].isObstacle == 0)){
-                grid[mapIndex].isObstacle = 1;
-                grid[mapIndex].needSent = 1;
+            if (obstacleCandidate[i].distance <= CANDIDATE_DIST)
+            {
+                obstacleCandidate[i].isCandidate = 1;
+                obstacleCandidate[i].x /= 5.0;
+                obstacleCandidate[i].y /= 5.0;
+            }
+            else
+            {
+                obstacleCandidate[i].isCandidate = 0;
+                obstacleCandidate[i].x = 0.0;
+                obstacleCandidate[i].y = 0.0;
             }
         }
-
     }
 
 
@@ -1245,7 +1444,6 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
     PieCtrlRegs.PIEIER12.all = TempPIEIER;
 
 }
-
 
 //
 // Connected to PIEIER12_11 (use MINT12 and MG12_11 masks):
@@ -1272,6 +1470,3 @@ __interrupt void SWI3_LowestPriority(void)     // FLASH_CORRECTABLE_ERROR
     PieCtrlRegs.PIEIER12.all = TempPIEIER;
 
 }
-
-
-

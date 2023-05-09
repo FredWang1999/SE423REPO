@@ -4,15 +4,15 @@ import image, sensor, ustruct, pyb, lcd, time
 sensor.reset()
 sensor.set_pixformat(sensor.RGB565)
 sensor.set_framesize(sensor.QVGA) # use QVGA 320*240
-sensor.set_auto_gain(False) # must be turned off for color tracking
-sensor.set_auto_whitebal(False) # must be turned off for color tracking
+sensor.set_auto_gain(False,gain_db = 11.4801) # must be turned off for color tracking
+sensor.set_auto_whitebal(False,[60.2071,60.5557,67.1094]) # must be turned off for color tracking
 lcd.init(triple_buffer=True) # Initialize the lcd screen.  Make Non-blocking but 3X RAM
 msk = sensor.alloc_extra_fb(320, 240, sensor.RGB565)
 msk2 = sensor.alloc_extra_fb(320, 240, sensor.RGB565)
 uart = pyb.UART(3)
 uart.init(115200, bits=8, parity=None)
-threshold1 = (66, 100, 10, 42, 8, 46) # orange
-threshold2 = (64, 100, 4, 22, -35, -7) # purple
+threshold1 = (61, 86, 17, 61, 17, 40)# orange
+threshold2 = (44, 100, 4, 27, -40, -12) # purple
 
 blob_packet = '<fff'
 

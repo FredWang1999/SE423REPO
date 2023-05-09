@@ -245,19 +245,6 @@ void setTongue(int isOrange){
     }
 }
 ////////////////////////////////////////////
-//points and map
-typedef struct gridPoint{
-    int isObstacle;
-    int needSent;
-    int counter;
-}gridPoint;
-
-gridPoint grid[176];
-#define lidarMaxDistThershold  10
-#define lidarMinDistThershold  1
-#define gridLidarCount 5
-/////
-
 void main(void)
 {
     // PLL, WatchDog, enable Peripheral Clocks
@@ -459,50 +446,43 @@ void main(void)
     GpioDataRegs.GPDCLEAR.bit.GPIO97 = 1;
     // LED5 is GPIO111
     GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
-    //init other stuff final project
+
     setGate(0);
     setTongue(1);
-    for (int i = 0; i < 176; i++){
-        grid[i].counter = 0;
-        grid[i].isObstacle = 0;
-        grid[i].needSent = 0;
-
     // IDLE loop. Just sit and loop forever (optional):
-
-    }
     while(1)
     {
         if (UARTPrint == 1 ) {
 
-//            if (readbuttons() == 0) {
-//                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
-////                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
-//                UART_printfLine(2,"F%.4f R%.4f",LADARfront,LADARrightfront);
-//            } else if (readbuttons() == 1) {
-//                UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
-//                UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
-//				//UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
-//                //UART_printfLine(2,"Ln1:%.3f Ln2:%.3f",printLinux1,printLinux2);
-//            } else if (readbuttons() == 2) {
-//                UART_printfLine(1,"O2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold1,NextLargestColThreshold1,NextLargestRowThreshold1);
-//                UART_printfLine(2,"P2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold2,NextLargestColThreshold2,NextLargestRowThreshold2);
-//                // UART_printfLine(1,"%.2f %.2f",adcC2Volt,adcC3Volt);
-//                // UART_printfLine(2,"%.2f %.2f",adcC4Volt,adcC5Volt);
-//            } else if (readbuttons() == 4) {
-//                UART_printfLine(1,"O3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold1,NextNextLargestColThreshold1,NextNextLargestRowThreshold1);
-//                UART_printfLine(2,"P3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold2,NextNextLargestColThreshold2,NextNextLargestRowThreshold2);
-//                // UART_printfLine(1,"L:%.3f R:%.3f",LeftVel,RightVel);
-//                // UART_printfLine(2,"uL:%.2f uR:%.2f",uLeft,uRight);
-//            } else if (readbuttons() == 8) {
-//                UART_printfLine(1,"020x%.2f y%.2f",ladar_pts[20].x,ladar_pts[20].y);
-//                UART_printfLine(2,"150x%.2f y%.2f",ladar_pts[150].x,ladar_pts[150].y);
-//            } else if (readbuttons() == 3) {
-//                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
-//                UART_printfLine(2,"MPU:%.2f LPR:%.2f",gyro9250_radians,gyroLPR510_radians);
-//            } else if (readbuttons() == 5) {
-//                UART_printfLine(1,"Ox:%.2f:Oy:%.2f:Oa%.2f",OPTITRACKps.x,OPTITRACKps.y,OPTITRACKps.theta);
-//                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
-//            }
+            if (readbuttons() == 0) {
+                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);				
+//                UART_printfLine(1,"x:%.2f:y:%.2f:a%.2f",ROBOTps.x,ROBOTps.y,ROBOTps.theta);
+                UART_printfLine(2,"F%.4f R%.4f",LADARfront,LADARrightfront);
+            } else if (readbuttons() == 1) {
+                UART_printfLine(1,"O1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold1,MaxColThreshold1,MaxRowThreshold1);
+                UART_printfLine(2,"P1A:%.0fC:%.0fR:%.0f",MaxAreaThreshold2,MaxColThreshold2,MaxRowThreshold2);
+				//UART_printfLine(1,"LV1:%.3f LV2:%.3f",printLV1,printLV2);
+                //UART_printfLine(2,"Ln1:%.3f Ln2:%.3f",printLinux1,printLinux2);
+            } else if (readbuttons() == 2) {
+                UART_printfLine(1,"O2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold1,NextLargestColThreshold1,NextLargestRowThreshold1);
+                UART_printfLine(2,"P2A:%.0fC:%.0fR:%.0f",NextLargestAreaThreshold2,NextLargestColThreshold2,NextLargestRowThreshold2);
+                // UART_printfLine(1,"%.2f %.2f",adcC2Volt,adcC3Volt);
+                // UART_printfLine(2,"%.2f %.2f",adcC4Volt,adcC5Volt);
+            } else if (readbuttons() == 4) {
+                UART_printfLine(1,"O3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold1,NextNextLargestColThreshold1,NextNextLargestRowThreshold1);
+                UART_printfLine(2,"P3A:%.0fC:%.0fR:%.0f",NextNextLargestAreaThreshold2,NextNextLargestColThreshold2,NextNextLargestRowThreshold2);
+                // UART_printfLine(1,"L:%.3f R:%.3f",LeftVel,RightVel);
+                // UART_printfLine(2,"uL:%.2f uR:%.2f",uLeft,uRight);
+            } else if (readbuttons() == 8) {
+                UART_printfLine(1,"020x%.2f y%.2f",ladar_pts[20].x,ladar_pts[20].y);
+                UART_printfLine(2,"150x%.2f y%.2f",ladar_pts[150].x,ladar_pts[150].y);
+            } else if (readbuttons() == 3) {
+                UART_printfLine(1,"Vrf:%.2f trn:%.2f",vref,turn);
+                UART_printfLine(2,"MPU:%.2f LPR:%.2f",gyro9250_radians,gyroLPR510_radians);
+            } else if (readbuttons() == 5) {
+                UART_printfLine(1,"Ox:%.2f:Oy:%.2f:Oa%.2f",OPTITRACKps.x,OPTITRACKps.y,OPTITRACKps.theta);
+                UART_printfLine(2,"State:%d : %d",RobotState,statePos);
+            }
 
             UARTPrint = 0;
         }
@@ -1049,8 +1029,6 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         }
 
 
-
-
         //Must be called each time into this SWI1 function
         PIcontrol(&uLeft,&uRight,vref,turn,LeftWheel,RightWheel);
         // These below lines also must be called each time into this SWI1 function
@@ -1062,28 +1040,14 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
         RightWheel_1 = RightWheel;
 
         if((timecount%250) == 0) {
-            //send wall data to linux final project
-            float wallSendingX = -1;
-            float wallSendingY = -1;
-            for (int i = 0; i < 176; i++){
-                if ((grid[i].needSent == 1)){
-                    int row = i/11;
-                    int col = i%11;
-                    wallSendingX = (float)col;
-                    wallSendingY = (float)row;
-                    grid[i].needSent = 0;
-                    break;
-                }
-            }
-
             DataToLabView.floatData[0] = ROBOTps.x;
             DataToLabView.floatData[1] = ROBOTps.y;
             DataToLabView.floatData[2] = ROBOTps.theta;
             DataToLabView.floatData[3] = (float)timecount;
             DataToLabView.floatData[4] = 0.5*(LeftVel + RightVel);
             DataToLabView.floatData[5] = (float)RobotState;
-            DataToLabView.floatData[6] = wallSendingX;
-            DataToLabView.floatData[7] = wallSendingY;
+            DataToLabView.floatData[6] = (float)statePos;
+            DataToLabView.floatData[7] = LADARfront;
             LVsenddata[0] = '*';  // header for LVdata
             LVsenddata[1] = '$';
             for (i=0;i<LVNUM_TOFROM_FLOATS*4;i++) {
@@ -1098,8 +1062,6 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
     }
     timecount++;
-
-
     if((timecount%200) == 0)
     {
         if(doneCal == 0) {
@@ -1131,8 +1093,6 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 //
 // Connected to PIEIER12_10 (use MINT12 and MG12_10 masks):
 //
-
-
 __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
 {
     // Set interrupt priority:
@@ -1166,8 +1126,10 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
         LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
         LADARyoffset = ROBOTps.y + (LADARps.x*sinf(ROBOTps.theta)-LADARps.y*cosf(ROBOTps.theta - PI/2.0));
         for (LADARi = 0; LADARi < 228; LADARi++) {
+
             ladar_pts[LADARi].x = LADARxoffset + ladar_data[LADARi].distance_ping*cosf(ladar_data[LADARi].angle + ROBOTps.theta);
             ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_ping*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
+
         }
     } else if (LADARpingpong == 0) {
         // LADARrightfront is the min of dist 52, 53, 54, 55, 56
@@ -1192,46 +1154,6 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             ladar_pts[LADARi].y = LADARyoffset + ladar_data[LADARi].distance_pong*sinf(ladar_data[LADARi].angle + ROBOTps.theta);
 
         }
-    }
-
-    //clear grid counter
-    for (int i = 0; i < 176; i++){
-        grid[i].counter = 0;
-    }
-    for (int i = 0; i < 228; i++){
-        float coordX = ladar_pts[i].x;
-        float coordY = ladar_pts[i].y;
-        int coordX_rounded = (int)(coordX + 100.5) - 100;
-        int coordY_rounded = (int)(coordY + 100.5) - 100;
-
-        int col = coordX_rounded + 5;
-        int row = 11 - coordY_rounded;
-        if((col > 10) || (col < 0) || (row > 15) || (row < 0)){
-            continue;
-        }
-
-
-        int mapIndex = row*11 + col;
-        if((mapIndex > 175) || (mapIndex < 0)){
-            continue;
-        }
-
-        float dist;
-        if(LADARpingpong == 0){
-            dist = ladar_data[i].distance_pong;
-        }else{
-            dist = ladar_data[i].distance_ping;
-        }
-
-        if((dist < lidarMaxDistThershold) && (dist > lidarMinDistThershold)){
-            grid[mapIndex].counter ++;
-            if (grid[mapIndex].counter > 1000) grid[mapIndex].counter = 1000;
-            if ((grid[mapIndex].counter > gridLidarCount) && (grid[mapIndex].isObstacle == 0)){
-                grid[mapIndex].isObstacle = 1;
-                grid[mapIndex].needSent = 1;
-            }
-        }
-
     }
 
 
