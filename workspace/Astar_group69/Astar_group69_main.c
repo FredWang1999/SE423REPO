@@ -146,18 +146,21 @@ int obsQueue[121][2];
 int queueRear = -1;
 int queueFront = -1;
 
-void insertObsQueue(int x, int y)
+int sendObsRow = 0;
+int sendObsCol = 0;
+
+void obsQueuePushBack(int col, int row)
 {
     // If queue is initially empty
-    if (queueFront == - 1)
+    if (queueFront == -1)
         queueFront = 0;
 
     queueRear++;
-    obsQueue[queueRear][0] = x;
-    obsQueue[queueRear][1] = y;
+    obsQueue[queueRear][0] = col;
+    obsQueue[queueRear][1] = row;
 }
 
-void deleteObsQueue()
+void obsQueuePopFront()
 {
     queueFront++;
 }
@@ -1412,8 +1415,24 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             DataToLabView.floatData[3] = 1;
             DataToLabView.floatData[4] = 2;
             DataToLabView.floatData[5] = 0;
-            DataToLabView.floatData[6] = 4;
-            DataToLabView.floatData[7] = 5;
+
+            // 230510 YASU if there's nothing new in the queue, send (0, 0)
+            // Else, send the front of the obstacle queue and pop front.
+            if (queueRear < queueFront)
+            {
+                sendObsRow = 0;
+                sendObsCol = 0;
+            }
+            else
+            {
+                // 230510 YASU (Col, Row) = (x, y)
+                sendObsCol = obsQueue[queueFront][0];
+                sendObsRow = obsQueue[queueFront][1];
+                obsQueuePopFront();
+            }
+
+            DataToLabView.floatData[6] = sendObsCol;
+            DataToLabView.floatData[7] = sendObsRow;
             LVsenddata[0] = '*';  // header for LVdata
             LVsenddata[1] = '$';
             for (i=0;i<LVNUM_TOFROM_FLOATS*4;i++) {
@@ -1707,7 +1726,7 @@ __interrupt void SWI3_LowestPriority(void)     // FLASH_CORRECTABLE_ERROR
                         {
                             obsMap[obsIndex].isFound = 1;
                             map[obsIndex] = 'x';
-                            insertObsQueue(mapCol, mapRow);
+                            obsQueuePushBack(mapCol, mapRow);
                             ReAstar = 1;
                         }
                     }
