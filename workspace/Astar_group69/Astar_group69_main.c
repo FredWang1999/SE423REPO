@@ -143,27 +143,54 @@ char testMap[176] =      //16x11
 
 // 230509 YASU declared obsQueue
 int obsQueue[121][2];
-int queueRear = -1;
-int queueFront = -1;
+int obsQueueRear = -1;
+int obsQueueFront = -1;
 
-int sendObsRow = 0;
 int sendObsCol = 0;
+int sendObsRow = 0;
 
 void obsQueuePushBack(int col, int row)
 {
     // If queue is initially empty
-    if (queueFront == -1)
-        queueFront = 0;
+    if (obsQueueFront == -1)
+        obsQueueFront = 0;
 
-    queueRear++;
-    obsQueue[queueRear][0] = col;
-    obsQueue[queueRear][1] = row;
+    obsQueueRear++;
+    obsQueue[obsQueueRear][0] = col;
+    obsQueue[obsQueueRear][1] = row;
 }
 
 void obsQueuePopFront()
 {
-    queueFront++;
+    obsQueueFront++;
 }
+
+// 230511 YASU declared ballQueue
+float ballQueue[20][3]; // Just try 20 balls.
+int ballQueueRear = -1;
+int ballQueueFront = -1;
+
+int sendBallCol = 0;
+int sendBallRow = 0;
+int sendBallColor = -1;
+
+void ballQueuePushBack(int col, int row, int color)
+{
+    // If queue is initially empty
+    if (ballQueueFront == -1)
+        ballQueueFront = 0;
+
+    ballQueueRear++;
+    ballQueue[ballQueueRear][0] = col;
+    ballQueue[ballQueueRear][1] = row;
+    ballQueue[ballQueueRear][2] = color;
+}
+
+void ballQueuePopFront()
+{
+    ballQueueFront++;
+}
+
 
 typedef struct obs{
     _Bool isFound;
@@ -486,7 +513,7 @@ void main(void)
     // 200MHz CPU Freq,                       Period (in uSeconds)
     ConfigCpuTimer(&CpuTimer0, LAUNCHPAD_CPU_FREQUENCY, 10000);  // Currently not used for any purpose
     ConfigCpuTimer(&CpuTimer1, LAUNCHPAD_CPU_FREQUENCY, 100000); // !!!!! Important, Used to command LADAR every 100ms.  Do not Change.
-    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 200000); // Currently not used for any purpose
+    ConfigCpuTimer(&CpuTimer2, LAUNCHPAD_CPU_FREQUENCY, 100000); // Currently not used for any purpose
 
     // Enable CpuTimer Interrupt bit TIE
     CpuTimer0Regs.TCR.all = 0x4000;
@@ -598,24 +625,6 @@ void main(void)
     GpioDataRegs.GPDCLEAR.bit.GPIO97 = 1;
     // LED5 is GPIO111
     GpioDataRegs.GPDCLEAR.bit.GPIO111 = 1;
-
-    // 230502 YASU initialize edgeMap
-//    for (int i=11 ; i<121 ; ++i)
-//    {
-//        int row = i/11;
-//        int col = i%11;
-//
-//        if (((row % 2) == 1) && ((col % 2) == 0))
-//        {
-//            edgeMap[row*11 + col].isEdge = 1;
-//        }
-//
-//        if (((row % 2) == 0) && ((col % 2) == 1))
-//        {
-//            edgeMap[row*11 + col].isEdge = 1;
-//        }
-//    }
-
 
     setGate(0);
     setTongue(1);
@@ -1228,6 +1237,9 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 if (StateTimeCounter == 1000){
                     StateTimeCounter = 0;
                     RobotState = 1;
+
+                    // 230511 YASU push a orange ball position to map
+                    ballQueuePushBack(ROBOTps.x, ROBOTps.y, 0);
                 }
                 break;
 
@@ -1287,6 +1299,9 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 if (StateTimeCounter == 1000){
                     StateTimeCounter = 0;
                     RobotState = 1;
+
+                    // 230511 YASU push a purple ball position to map
+                    ballQueuePushBack(ROBOTps.x, ROBOTps.y, 1);
                 }
                 break;
 
@@ -1412,22 +1427,39 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             DataToLabView.floatData[0] = ROBOTps.x;
             DataToLabView.floatData[1] = ROBOTps.y;
             DataToLabView.floatData[2] = ROBOTps.theta;
-            DataToLabView.floatData[3] = 1;
-            DataToLabView.floatData[4] = 2;
-            DataToLabView.floatData[5] = 0;
 
-            // 230510 YASU if there's nothing new in the queue, send (0, 0)
-            // Else, send the front of the obstacle queue and pop front.
-            if (queueRear < queueFront)
+            // 230510 YASU if there's nothing new in the queue, send (0, 0, -1)
+            // Else, send the front of the ball queue and pop front.
+            if (ballQueueRear < ballQueueFront)
             {
-                sendObsRow = 0;
-                sendObsCol = 0;
+                sendBallCol = 0;
+                sendBallRow = 0;
+                sendBallColor = -1;
             }
             else
             {
                 // 230510 YASU (Col, Row) = (x, y)
-                sendObsCol = obsQueue[queueFront][0];
-                sendObsRow = obsQueue[queueFront][1];
+                sendBallCol = ballQueue[ballQueueFront][0];
+                sendBallRow = ballQueue[ballQueueFront][1];
+                sendBallColor = ballQueue[ballQueueFront][2];
+                ballQueuePopFront();
+            }
+            DataToLabView.floatData[3] = sendBallCol;
+            DataToLabView.floatData[4] = sendBallRow;
+            DataToLabView.floatData[5] = sendBallColor;
+
+            // 230510 YASU if there's nothing new in the queue, send (0, 0)
+            // Else, send the front of the obstacle queue and pop front.
+            if (obsQueueRear < obsQueueFront)
+            {
+                sendObsCol = 0;
+                sendObsRow = 0;
+            }
+            else
+            {
+                // 230510 YASU (Col, Row) = (x, y)
+                sendObsCol = obsQueue[obsQueueFront][0];
+                sendObsRow = obsQueue[obsQueueFront][1];
                 obsQueuePopFront();
             }
 
