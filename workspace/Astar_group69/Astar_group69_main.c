@@ -315,7 +315,7 @@ float left_turn_Stop_threshold = 3;
 float Kp_right_wal = -4.0;
 float ref_right_wall = 1.2;
 float foward_velocity = 1.2;
-float left_turn_Start_threshold = 1.45;
+float left_turn_Start_threshold = 1.35;
 float turn_saturation_right = 1;
 float turn_saturation_left = 2.5;
 
@@ -1143,14 +1143,16 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                     checkfronttally = 0;
                 }
                 StateTimeCounter++;
-                if(wayindex < (NUMWAYPOINTS-3)){
-                    if ((MaxAreaThreshold2 > AreaThreshold2Collect) && (StateTimeCounter > 500)){
-                        StateTimeCounter = 0;
-                        RobotState = 30;
-                    }
-                    if ((MaxAreaThreshold1 > MaxAreaThreshold2) && (MaxAreaThreshold1 > AreaThreshold2Collect) && (StateTimeCounter > 500)){
-                        StateTimeCounter = 0;
-                        RobotState = 20;
+                if ((ROBOTps.x > 0) || (ROBOTps.x <-2)||(ROBOTps.y > 12) || (ROBOTps.y < 10)){//this is cheating but anyway
+                    if(wayindex < (NUMWAYPOINTS-3)){
+                        if ((MaxAreaThreshold2 > AreaThreshold2Collect) && (StateTimeCounter > 500)){
+                            StateTimeCounter = 0;
+                            RobotState = 30;
+                        }
+                        if ((MaxAreaThreshold1 > MaxAreaThreshold2) && (MaxAreaThreshold1 > AreaThreshold2Collect) && (StateTimeCounter > 500)){
+                            StateTimeCounter = 0;
+                            RobotState = 20;
+                        }
                     }
                 }
                 break;
@@ -1251,7 +1253,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                     RobotState = 1;
 
                     // 230511 YASU push a orange ball position to map
-                    ballQueuePushBack(ROBOTps.x, ROBOTps.y, 0);
+                    ballQueuePushBack(ROBOTps.x + 0.667*cosf(ROBOTps.theta), ROBOTps.y + 0.667*sinf(ROBOTps.theta), 0);
                 }
                 break;
 
@@ -1312,7 +1314,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                     StateTimeCounter = 0;
                     RobotState = 1;
                     // 230511 YASU push a purple ball position to map
-                    ballQueuePushBack(ROBOTps.x, ROBOTps.y, 1);
+                    ballQueuePushBack(ROBOTps.x + 0.667*cosf(ROBOTps.theta), ROBOTps.y + 0.667*sinf(ROBOTps.theta), 1);
                 }
                 break;
 
