@@ -170,11 +170,11 @@ float ballQueue[20][3]; // Just try 20 balls.
 int ballQueueRear = -1;
 int ballQueueFront = -1;
 
-int sendBallCol = 0;
-int sendBallRow = 0;
+float sendBallCol = 0;
+float sendBallRow = 0;
 int sendBallColor = -1;
 
-void ballQueuePushBack(int col, int row, int color)
+void ballQueuePushBack(float col, float row, int color)
 {
     // If queue is initially empty
     if (ballQueueFront == -1)
@@ -241,6 +241,8 @@ uint16_t G_len = 11; //length of command
 xy ladar_pts[228]; //xy data
 float LADARrightfront = 0;
 float LADARfront = 0;
+float LADARfrontL = 0;
+float LADARfrontR = 0;
 float LADARtemp_x = 0;
 float LADARtemp_y = 0;
 extern datapts ladar_data[228];
@@ -283,7 +285,7 @@ float colcentroid1 = 0;
 float colcentroid2 = 0;
 float kpvision = -0.05;
 uint16_t StateTimeCounter = 0;
-static uint16_t AreaThreshold2Collect = 50;
+static uint16_t AreaThreshold2Collect = 20;
 static uint16_t RowThreshold2State22 = 195;
 
 uint32_t numThres1 = 0;
@@ -299,7 +301,7 @@ int16_t RobotState = 1;
 int16_t checkfronttally = 0;
 int32_t WallFollowtime = 0;
 
-#define NUMWAYPOINTS 8
+#define NUMWAYPOINTS 9
 uint16_t statePos = 0;
 pose robotdest[40];  // array of waypoints for the robot
 pose waypoints[NUMWAYPOINTS];  // array of waypoints for the robot
@@ -307,14 +309,15 @@ int16_t wayindex = 0;
 uint16_t i = 0;//for loop
 
 uint16_t right_wall_follow_state = 2;  // right follow
-float Kp_front_wall = -2.0;
+float Kp_front_wall = -1.0;
 float front_turn_velocity = 0.2;
-float left_turn_Stop_threshold = 3.5;
+float left_turn_Stop_threshold = 3;
 float Kp_right_wal = -4.0;
-float ref_right_wall = 1.1;
-float foward_velocity = 1.0;
-float left_turn_Start_threshold = 1.3;
-float turn_saturation = 2.5;
+float ref_right_wall = 1.2;
+float foward_velocity = 1.2;
+float left_turn_Start_threshold = 1.45;
+float turn_saturation_right = 1;
+float turn_saturation_left = 2.5;
 
 float x_pred[3][1] = {{0},{0},{0}};                 // predicted state
 
@@ -578,9 +581,10 @@ void main(void)
     waypoints[3].x = 5;     waypoints[3].y = -3;
     //back to middle
     waypoints[4].x = 0;     waypoints[4].y = 11;
-    waypoints[5].x = -2;     waypoints[5].y = -4;
-    waypoints[6].x = 2;     waypoints[6].y = -4;
-    waypoints[7].x = 0;     waypoints[7].y = -4;
+    waypoints[5].x = 0;     waypoints[5].y = 11;
+    waypoints[6].x = -2;    waypoints[6].y = -4;
+    waypoints[7].x = 2;     waypoints[7].y = -4;
+    waypoints[8].x = 0;     waypoints[8].y = -4;
 //    waypoints[7].x = 0;     waypoints[7].y = 9;
 
     // ROBOTps will be updated by Optitrack during gyro calibration
@@ -1089,7 +1093,8 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
 
         // Make sure this function is called every time in this function even if you decide not to use its vref and turn
         // uses xy code to step through an array of positions
-        if( xy_control(&vref, &turn, 1.0, ROBOTps.x, ROBOTps.y, robotdest[statePos].x, robotdest[statePos].y, ROBOTps.theta, 0.25, 0.50)) {
+        // turn is default 1.0, we change it to 0.5
+        if( xy_control(&vref, &turn, 0.8, ROBOTps.x, ROBOTps.y, robotdest[statePos].x, robotdest[statePos].y, ROBOTps.theta, 0.25, 0.50)) {
 //            statePos = (statePos+1)%NUMWAYPOINTS;
             if (wayindex != (NUMWAYPOINTS))
             {
@@ -1155,6 +1160,12 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                     //Left Turn
                     turn = Kp_front_wall*(14.5 - LADARfront);
                     vref = front_turn_velocity;
+                    if (turn > turn_saturation_left) {
+                        turn = turn_saturation_left;
+                    }
+                    if (turn < -turn_saturation_left) {
+                        turn = -turn_saturation_left;
+                    }
                     if (LADARfront > left_turn_Stop_threshold) {
                         right_wall_follow_state = 2;
                     }
@@ -1162,19 +1173,20 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                     //Right Wall Follow
                     turn = Kp_right_wal*(ref_right_wall - LADARrightfront);
                     vref = foward_velocity;
+                    if (turn > turn_saturation_right) {
+                        turn = turn_saturation_right;
+                    }
+                    if (turn < -turn_saturation_right) {
+                        turn = -turn_saturation_right;
+                    }
                     if (LADARfront < left_turn_Start_threshold) {
                         right_wall_follow_state = 1;
                     }
                 }
-                if (turn > turn_saturation) {
-                    turn = turn_saturation;
-                }
-                if (turn < -turn_saturation) {
-                    turn = -turn_saturation;
-                }
+
 
                 WallFollowtime++;
-                if ( (WallFollowtime > 5000) && (LADARfront > 1.5) ) {
+                if ( (WallFollowtime > 2500) && (LADARfront > 1.5) ) {
                     RobotState = 1;
                     checkfronttally = 0;
                 }
@@ -1184,7 +1196,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 // vision code [TH]
                 StateTimeCounter++;
                 if (MaxColThreshold1 == 0 || MaxAreaThreshold1 < 3){
-                    vref = 0;
+                    vref = 0.75;
                     turn = 0;
                     if (StateTimeCounter == 1000){
                         StateTimeCounter = 0;
@@ -1247,7 +1259,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 // vision code [TH]
                 StateTimeCounter++;
                 if (MaxColThreshold2 == 0 || MaxAreaThreshold2 < 3){
-                    vref = 0;
+                    vref = 0.5;
                     turn = 0;
                     if (StateTimeCounter == 1000){
                         StateTimeCounter = 0;
@@ -1299,16 +1311,15 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 if (StateTimeCounter == 1000){
                     StateTimeCounter = 0;
                     RobotState = 1;
-
                     // 230511 YASU push a purple ball position to map
                     ballQueuePushBack(ROBOTps.x, ROBOTps.y, 1);
                 }
                 break;
 
-            // place orange ball
+            // place purple ball
             case 40:
                 setGate(0);
-                setTongue(1);
+                setTongue(0);
                 StateTimeCounter++;
                 vref = 0;
                 turn = 0;
@@ -1328,10 +1339,10 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
                 }
                 break;
 
-            // place purple ball
+            // place orange ball
             case 42:
                 setGate(0);
-                setTongue(0);
+                setTongue(1);
                 StateTimeCounter++;
                 vref = 0;
                 turn = 0;
@@ -1354,60 +1365,7 @@ __interrupt void SWI1_HighestPriority(void)     // EMIF_ERROR
             default:
                 break;
             }
-//        switch (RobotState) {
-//        case 1:
-//
-//            // vref and turn are the vref and turn returned from xy_control
-//
-//            if (LADARfront < 1.2) {
-//                vref = 0.2;
-//                checkfronttally++;
-//                if (checkfronttally > 310) { // check if LADARfront < 1.2 for 310ms or 3 LADAR samples
-//                    RobotState = 10; // Wall follow
-//                    WallFollowtime = 0;
-//                    right_wall_follow_state = 1;
-//                }
-//            } else {
-//                checkfronttally = 0;
-//            }
-//
-//            break;
-//        case 10:
-//            if (right_wall_follow_state == 1) {
-//                //Left Turn
-//                turn = Kp_front_wall*(14.5 - LADARfront);
-//                vref = front_turn_velocity;
-//                if (LADARfront > left_turn_Stop_threshold) {
-//                    right_wall_follow_state = 2;
-//                }
-//            } else if (right_wall_follow_state == 2) {
-//                //Right Wall Follow
-//                turn = Kp_right_wal*(ref_right_wall - LADARrightfront);
-//                vref = foward_velocity;
-//                if (LADARfront < left_turn_Start_threshold) {
-//                    right_wall_follow_state = 1;
-//                }
-//            }
-//            if (turn > turn_saturation) {
-//                turn = turn_saturation;
-//            }
-//            if (turn < -turn_saturation) {
-//                turn = -turn_saturation;
-//            }
-//
-//            WallFollowtime++;
-//            if ( (WallFollowtime > 5000) && (LADARfront > 1.5) ) {
-//                RobotState = 1;
-//                checkfronttally = 0;
-//            }
-//            break;
-//
-//        case 20:
-//            // put vision code here
-//            break;
-//        default:
-//            break;
-//        }
+
         if (AstarRunning == 1) {  // pause the robot while Astar is running on the PI4.  Once new path sent from PI AstarRunning will be set to 0
             vref = 0;
             turn = 0;
@@ -1606,12 +1564,15 @@ __interrupt void SWI2_MiddlePriority(void)     // RAM_CORRECTABLE_ERROR
             }
         }
         // LADARfront is the min of dist 111, 112, 113, 114, 115
+        //changed to 90-135 for
         LADARfront = 19;
-        for (LADARi = 111; LADARi <= 115 ; LADARi++) {
+        for (LADARi = 90; LADARi <= 135 ; LADARi++) {
             if (ladar_data[LADARi].distance_ping < LADARfront) {
                 LADARfront = ladar_data[LADARi].distance_ping;
             }
         }
+
+
         LADARxoffset = ROBOTps.x + (LADARps.x*cosf(ROBOTps.theta)-LADARps.y*sinf(ROBOTps.theta - PI/2.0));
         LADARyoffset = ROBOTps.y + (LADARps.x*sinf(ROBOTps.theta)-LADARps.y*cosf(ROBOTps.theta - PI/2.0));
         for (LADARi = 0; LADARi < 228; LADARi++) {

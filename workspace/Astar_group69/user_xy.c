@@ -81,7 +81,7 @@ int16_t xy_control(float *vref_forxy, float *turn_forxy,float turn_thres, float 
 	dx = x_desired - x_pos;
 	dy = y_desired - y_pos;
 	dist = sqrtf( dx*dx + dy*dy );
-	dir = 1.0F;
+	dir = 1.5F;
 
 	// calculate alpha (trajectory angle) between -PI and PI
 	alpha = my_atanf(dy,dx);
@@ -118,7 +118,7 @@ int16_t xy_control(float *vref_forxy, float *turn_forxy,float turn_thres, float 
         *turn_forxy = (*vref_forxy*2)*turnerror;
     } else {
         // normally use a Kp gain of 2
-        *turn_forxy = 2*turnerror;
+        *turn_forxy = 2.5*turnerror;
     }
     
     // This helps with unbalanced wheel slipping.  If turn value greater than turn_thres (I use 2) then just spin in place
